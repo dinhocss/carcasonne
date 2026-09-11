@@ -1,4 +1,4 @@
-import { Tile } from '../types/tile';
+import type { Tile } from '../types/Tile';
 
 
 export interface Modelo{
@@ -46,7 +46,7 @@ export const catalogo_pecas: Modelo[] = [
     {
         modelo:{
             tipo:'CIDADE_1_LADO_ESTRADA_RETA',
-            imagem:'/assets/tiles/cidade-1-lado-estrada-reta.png'
+            imagem:'/assets/tiles/cidade-1-lado-estrada-reta.png',
             bordas:['CIDADE','ESTRADA','CAMPO','ESTRADA'],
             temEscudo:false
         },
