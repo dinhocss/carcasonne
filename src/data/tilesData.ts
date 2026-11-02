@@ -1,8 +1,7 @@
-import type { Tile } from '../types/Tile';
+import type { DadosModeloTile } from '../models/Tile';
 
-
-export interface Modelo{
-    modelo: Tile;
+export interface Modelo {
+    modelo: DadosModeloTile;
     quantidade: number;
 }
 
