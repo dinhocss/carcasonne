@@ -75,7 +75,7 @@ export function App() {
                   id: PosicaoSubsegmento.O2
               },
               // SÓ adiciona o botão do Centro se a peça realmente tiver um MOSTEIRO!
-              ...(ultimoTile.obterTipoSubsegmento(PosicaoSubsegmento.CENTRO) === 'MOSTEIRO'
+              ...(ultimoTile.temMosteiro()
                   ? [{ label: '⛪ Centro: MOSTEIRO (Monge)', id: PosicaoSubsegmento.CENTRO }]
                   : [])
           ]
@@ -271,7 +271,7 @@ export function App() {
                     </div>
                 )}
 
-                {faseAtual === 'ALOCAR_MEEPLE' && (
+                {(faseAtual === 'POSICIONAR_MEEPLE' || faseAtual === 'ALOCAR_MEEPLE') && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <p style={{ fontSize: '12px', margin: '0', color: '#ffd166' }}>
                             Escolha onde posicionar seu Meeple na peça destacada:
@@ -289,7 +289,7 @@ export function App() {
                         <button
                             className="btn"
                             style={{ backgroundColor: '#4a4e69', marginTop: '4px', padding: '8px' }}
-                            onClick={() => gameManager.proximoTurno()}
+                            onClick={() => gameManager.finalizarTurnoSemMeeple()}
                         >
                             ⏭️ Não colocar Meeple (Passar Turno)
                         </button>

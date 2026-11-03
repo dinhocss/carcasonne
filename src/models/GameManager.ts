@@ -4,20 +4,27 @@ import { TabuleiroManager } from './TabuleiroManager';
 import { Tabuleiro } from './Tabuleiro';
 import type { Tile } from './Tile';
 
-
 export interface IGameObserver {
     aoAtualizarJogo(): void;
 }
 
-export type FaseDoTurno = 'COMPRAR_TILE' | 'POSICIONAR_TILE' | 'ALOCAR_MEEPLE' | 'FIM_DE_JOGO';
+export type FaseDoTurno =
+    | 'COMPRAR_TILE'
+    | 'POSICIONAR_TILE'
+    | 'POSICIONAR_MEEPLE'
+    | 'ALOCAR_MEEPLE'
+    | 'FINALIZAR_TURNO'
+    | 'FIM_DE_JOGO';
 
-
+/**
+ * GameManager (Controller):
+ * Atua ESTRITAMENTE como orquestrador do fluxo do turno:
+ * Fases: COMPRAR_TILE -> POSICIONAR_TILE -> POSICIONAR_MEEPLE -> FINALIZAR_TURNO.
+ * NÃO contém regras de validação de vizinhança nem cálculos diretos de pontuação.
+ */
 export class GameManager {
-
     private static instancia: GameManager | null = null;
-
     private observadores: IGameObserver[] = [];
-
 
     private participantes: Participante[] = [];
     private jogadorAtual: Participante;
@@ -25,17 +32,14 @@ export class GameManager {
     private tileManager: TileManager;
     private tabuleiroManager: TabuleiroManager;
 
-
     private ultimoTilePosicionado: Tile | null = null;
     private faseAtual: FaseDoTurno = 'COMPRAR_TILE';
     private mensagemStatus: string = 'Bem-vindo ao Carcassonne!';
-
 
     private constructor() {
         const tabuleiro = new Tabuleiro(11);
         this.tabuleiroManager = new TabuleiroManager(tabuleiro);
         this.tileManager = new TileManager();
-
 
         this.participantes = [
             new Jogador('Jogador 1 (Você)', '#4CAF50'),
@@ -80,6 +84,7 @@ export class GameManager {
         this.jogadorAtual = this.participantes[0];
         this.ultimoTilePosicionado = null;
 
+        // Peça inicial posicionada no centro do tabuleiro (5, 5)
         const pecaInicial = this.tileManager.comprarTile();
         if (pecaInicial) {
             this.tabuleiroManager.obterTabuleiro().posicionarTile(pecaInicial, 5, 5);
@@ -91,13 +96,19 @@ export class GameManager {
         this.notificarObservadores();
     }
 
+    /**
+     * Fase: COMPRAR_TILE
+     */
     public comprarTileDoTurno(): Tile | null {
-        if (this.faseAtual !== 'COMPRAR_TILE') return this.tileManager.obterTileAtual();
+        if (this.faseAtual !== 'COMPRAR_TILE') {
+            return this.tileManager.obterTileAtual();
+        }
 
-        const tile = this.tileManager.comprarTile();
+        // Delegado ao TileManager com descarte automático de peças impossíveis
+        const tile = this.tileManager.comprarTile(this.tabuleiroManager);
         if (!tile) {
             this.faseAtual = 'FIM_DE_JOGO';
-            this.mensagemStatus = 'O baralho acabou! Fim de jogo!';
+            this.mensagemStatus = 'O baralho acabou ou não há mais jogadas possíveis! Fim de jogo!';
             this.notificarObservadores();
             return null;
         }
@@ -115,14 +126,18 @@ export class GameManager {
         this.notificarObservadores();
     }
 
+    /**
+     * Fase: POSICIONAR_TILE
+     */
     public posicionarTileNoTabuleiro(x: number, y: number): boolean {
         if (this.faseAtual !== 'POSICIONAR_TILE') return false;
 
         const tileAtual = this.tileManager.obterTileAtual();
         if (!tileAtual) return false;
 
+        // Validação estritamente delegada ao TabuleiroManager
         if (!this.tabuleiroManager.validarPosicaoTile(tileAtual, x, y)) {
-            this.mensagemStatus = 'Posição inválida! As bordas (Cidade, Estrada, Campo) devem combinar com os vizinhos.';
+            this.mensagemStatus = 'Posição inválida! As bordas (Cidade, Estrada, Campo) devem combinar perfeitamente com os vizinhos.';
             this.notificarObservadores();
             return false;
         }
@@ -132,7 +147,7 @@ export class GameManager {
         this.tileManager.limparTileAtual();
 
         if (this.jogadorAtual.temMeepleDisponivel()) {
-            this.faseAtual = 'ALOCAR_MEEPLE';
+            this.faseAtual = 'POSICIONAR_MEEPLE';
             this.mensagemStatus = `${this.jogadorAtual.obterNome()}: Escolha onde colocar um Meeple na peça ou clique em "Passar Turno".`;
         } else {
             this.finalizarJogadaEPontuar();
@@ -142,18 +157,26 @@ export class GameManager {
         return true;
     }
 
+    /**
+     * Fase: POSICIONAR_MEEPLE
+     */
     public alocarMeepleNoTileAtual(idSubsegmento: number): boolean {
-        if (this.faseAtual !== 'ALOCAR_MEEPLE' || !this.ultimoTilePosicionado) return false;
+        if (
+            (this.faseAtual !== 'POSICIONAR_MEEPLE' && this.faseAtual !== 'ALOCAR_MEEPLE') ||
+            !this.ultimoTilePosicionado
+        ) {
+            return false;
+        }
 
+        // Validação estritamente delegada ao TabuleiroManager
         if (!this.tabuleiroManager.validarPosicaoMeeple(this.ultimoTilePosicionado, idSubsegmento)) {
-            this.mensagemStatus = 'Não é possível colocar um Meeple nessa posição!';
+            this.mensagemStatus = 'Não é possível colocar um Meeple nessa posição! (Estrutura já ocupada ou inválida).';
             this.notificarObservadores();
             return false;
         }
 
         const meeple = this.jogadorAtual.pegarMeeple();
         if (!meeple) return false;
-
 
         meeple.alocarMeeple(this.ultimoTilePosicionado, idSubsegmento);
 
@@ -162,18 +185,41 @@ export class GameManager {
         return true;
     }
 
+    /**
+     * Permite passar o turno sem posicionar Meeple na peça recém-colocada.
+     */
+    public finalizarTurnoSemMeeple(): void {
+        if (this.faseAtual !== 'POSICIONAR_MEEPLE' && this.faseAtual !== 'ALOCAR_MEEPLE') return;
+        this.finalizarJogadaEPontuar();
+        this.notificarObservadores();
+    }
+
+    /**
+     * Fase: FINALIZAR_TURNO
+     */
     private finalizarJogadaEPontuar(): void {
+        this.faseAtual = 'FINALIZAR_TURNO';
+
         if (this.ultimoTilePosicionado) {
+            // Fechamento e pontuação estritamente delegados ao TabuleiroManager
             this.tabuleiroManager.verificarEPontuarFechamentos(this.ultimoTilePosicionado);
         }
+
         this.proximoTurno();
     }
 
-
     public proximoTurno(): void {
+        // Se ainda estava na fase de meeple e o jogador chamou proximoTurno diretamente:
+        if (
+            (this.faseAtual === 'POSICIONAR_MEEPLE' || this.faseAtual === 'ALOCAR_MEEPLE') &&
+            this.ultimoTilePosicionado
+        ) {
+            this.tabuleiroManager.verificarEPontuarFechamentos(this.ultimoTilePosicionado);
+        }
+
         if (this.tileManager.obterQuantidadeRestante() === 0) {
             this.faseAtual = 'FIM_DE_JOGO';
-            this.mensagemStatus = 'Fim de jogo! Todas as 72 peças foram jogadas.';
+            this.mensagemStatus = 'Fim de jogo! Todas as peças foram jogadas.';
             this.notificarObservadores();
             return;
         }
@@ -184,7 +230,6 @@ export class GameManager {
         this.faseAtual = 'COMPRAR_TILE';
         this.mensagemStatus = `Vez de ${this.jogadorAtual.obterNome()} comprar uma peça.`;
 
-
         if (this.jogadorAtual.ehAutomatico()) {
             this.executarTurnoAutomaticoIA();
         }
@@ -193,8 +238,12 @@ export class GameManager {
     }
 
     private executarTurnoAutomaticoIA(): void {
-        const tile = this.tileManager.comprarTile();
-        if (!tile) return;
+        const tile = this.tileManager.comprarTile(this.tabuleiroManager);
+        if (!tile) {
+            this.faseAtual = 'FIM_DE_JOGO';
+            this.mensagemStatus = 'Fim de jogo!';
+            return;
+        }
 
         const tab = this.tabuleiroManager.obterTabuleiro();
         let posicionou = false;
@@ -214,7 +263,7 @@ export class GameManager {
         }
 
         if (posicionou && this.ultimoTilePosicionado && this.jogadorAtual.temMeepleDisponivel()) {
-            const candidatos = [12, 1, 4, 7, 10];
+            const candidatos = this.ultimoTilePosicionado.obterPosicoesValidasMeeple();
             for (const subId of candidatos) {
                 const terreno = this.ultimoTilePosicionado.obterTipoSubsegmento(subId);
                 if (

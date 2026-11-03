@@ -14,21 +14,23 @@ export function renderizarTabuleiro(
 
   gridElement.style.gridTemplateColumns = `repeat(${tabuleiro.tamanho}, 80px)`;
 
+  const grid = tabuleiro.obterGrid();
+
   for (let l = 0; l < tabuleiro.tamanho; l++) {
     for (let c = 0; c < tabuleiro.tamanho; c++) {
       const celula = document.createElement("div");
       celula.className = "celula";
 
-      const peca = tabuleiro.grid[l][c];
+      const peca = grid[l][c];
 
       if (peca) {
         celula.classList.add("com-peca");
 
         const img = document.createElement("img");
-        img.src = peca.tile.imagem;
-        img.alt = peca.tile.tipo;
+        img.src = peca.imagem;
+        img.alt = peca.tipo;
 
-        img.style.transform = `rotate(${peca.rotacao}deg)`;
+        img.style.transform = `rotate(${peca.obterRotacao()}deg)`;
 
         celula.appendChild(img);
       }

@@ -1,5 +1,6 @@
 import { catalogo_pecas } from '../data/tilesData';
 import { Tile } from './Tile';
+import type { TabuleiroManager } from './TabuleiroManager';
 
 export class TileManager {
     private baralho: Tile[] = [];
@@ -10,7 +11,7 @@ export class TileManager {
         this.embaralhar();
     }
 
-    private inicializarBaralho(): void {
+    public inicializarBaralho(): void {
         this.baralho = [];
         let contadorId = 1;
 
@@ -29,13 +30,23 @@ export class TileManager {
         }
     }
 
-    public comprarTile(): Tile | null {
-        if (this.baralho.length === 0) {
-            this.tileAtual = null;
-            return null;
+    /**
+     * Saca a próxima peça válida do baralho.
+     * Se um TabuleiroManager for fornecido, descarta automaticamente qualquer peça
+     * que não tenha encaixe válido em nenhuma posição e rotação no tabuleiro atual.
+     */
+    public comprarTile(tabuleiroManager?: TabuleiroManager): Tile | null {
+        while (this.baralho.length > 0) {
+            const candidato = this.baralho.pop()!;
+            if (!tabuleiroManager || tabuleiroManager.existePosicaoValidaParaTile(candidato)) {
+                this.tileAtual = candidato;
+                return this.tileAtual;
+            }
+            // Peça descartada automaticamente por ser impossível de posicionar
         }
-        this.tileAtual = this.baralho.pop() || null;
-        return this.tileAtual;
+
+        this.tileAtual = null;
+        return null;
     }
 
     public rotacionarTileAtualDoBaralho(): void {
