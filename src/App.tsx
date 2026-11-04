@@ -342,7 +342,7 @@ export function App() {
                 </p>
 
                 {/* Controles e Peça Atual */}
-                <h2 style={{ fontSize: '18px', margin: '4px 0 8px 0' }}>Ações do Turno (Facade)</h2>
+
 
                 {!jogoFinalizado && !partidaSomenteIA && faseAtual === 'COMPRAR_TILE' && (
                     <button
