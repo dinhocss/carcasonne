@@ -1,7 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import './style.css';
-import { GameManager, type IGameObserver } from './models/GameManager';
+import { CarcasonneFacade } from './models/CarcasonneFacade';
+import type { IGameObserver } from './models/GameManager';
 import { PosicaoSubsegmento, type TipoTerreno } from './models/Enums';
+import {
+    EstrategiaIAPrimeiraValida,
+    EstrategiaIAAgressiva,
+    EstrategiaIADefensiva,
+    type EstrategiaIA
+} from './models/Participante';
 
 // Converte o terreno no nome da profissão do Meeple para ajudar o jogador na tela
 function nomeProfissao(terreno: TipoTerreno): string {
@@ -13,24 +20,21 @@ function nomeProfissao(terreno: TipoTerreno): string {
     }
 }
 
-// Calcula onde desenhar a bolinha do Meeple dentro do quadrado 70x70 da peça!
+// Calcula onde desenhar a bolinha do Meeple dentro do quadrado 64x64 da peça
 function obterEstiloPosicaoMeeple(idSubsegmento: number): React.CSSProperties {
-    // Norte (0, 1, 2) -> Topo
     if (idSubsegmento <= 2) return { top: '4px', left: '50%', transform: 'translateX(-50%)' };
-    // Leste (3, 4, 5) -> Direita
     if (idSubsegmento <= 5) return { right: '4px', top: '50%', transform: 'translateY(-50%)' };
-    // Sul (6, 7, 8) -> Baixo
     if (idSubsegmento <= 8) return { bottom: '4px', left: '50%', transform: 'translateX(-50%)' };
-    // Oeste (9, 10, 11) -> Esquerda
     if (idSubsegmento <= 11) return { left: '4px', top: '50%', transform: 'translateY(-50%)' };
-    // Centro (12) -> Meio exato
     return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
 }
 
 export function App() {
-    const gameManager = GameManager.getInstance();
+    // Padrão GoF Facade & GRASP Controller: UI se comunica exclusivamente com a CarcasonneFacade
+    const facade = useMemo(() => new CarcasonneFacade(), []);
     const [, setTick] = useState(0);
     const [menuFechado, setMenuFechado] = useState(false);
+    const [tipoEstrategiaIA, setTipoEstrategiaIA] = useState<'FACIL' | 'AGRESSIVA' | 'DEFENSIVA'>('FACIL');
 
     useEffect(() => {
         const observadorDaTela: IGameObserver = {
@@ -39,23 +43,41 @@ export function App() {
             }
         };
 
-        gameManager.adicionarObservador(observadorDaTela);
-        gameManager.iniciarPartida(false);
+        facade.adicionarObservador(observadorDaTela);
+        facade.iniciarNovaPartida(['Jogador 1 (Você)', 'Jogador 2']);
 
         return () => {
-            gameManager.removerObservador(observadorDaTela);
+            facade.removerObservador(observadorDaTela);
         };
-    }, [gameManager]);
+    }, [facade]);
 
-    const tabuleiro = gameManager.obterTabuleiro();
+    const obterInstanciaEstrategiaIA = (): EstrategiaIA => {
+        switch (tipoEstrategiaIA) {
+            case 'AGRESSIVA': return new EstrategiaIAAgressiva();
+            case 'DEFENSIVA': return new EstrategiaIADefensiva();
+            default: return new EstrategiaIAPrimeiraValida();
+        }
+    };
+
+    const iniciarJogoComIA = () => {
+        facade.iniciarPartidaContraIA(
+            'Jogador 1 (Você)',
+            `Bot Carcassonne (${tipoEstrategiaIA})`,
+            obterInstanciaEstrategiaIA()
+        );
+    };
+
+    const tabuleiro = facade.obterTabuleiro();
     const grid = tabuleiro.obterGrid();
-    const participantes = gameManager.obterParticipantes();
-    const jogadorAtual = gameManager.obterJogadorAtual();
-    const tileEmMaos = gameManager.obterTileEmMaos();
-    const ultimoTile = gameManager.obterUltimoTilePosicionado();
-    const faseAtual = gameManager.obterFaseAtual();
+    const participantes = facade.obterParticipantes();
+    const jogadorAtual = facade.obterJogadorAtual();
+    const tileEmMaos = facade.obterTileAtual();
+    const ultimoTile = facade.obterUltimoTilePosicionado();
+    const faseAtual = facade.obterFaseAtual();
+    const jogoFinalizado = facade.estaFinalizada();
+    const vencedores = jogoFinalizado ? facade.obterVencedores() : [];
 
-    // Gera as opções reais de Meeple baseadas nos terrenos da peça que acabou de ser colocada
+    // Opções de subsegmentos válidos para colocar o Meeple
     const opcoesMeepleDisponiveis = ultimoTile
         ? [
               {
@@ -74,7 +96,6 @@ export function App() {
                   label: `⬅️ Oeste: ${ultimoTile.obterBordaOeste()} (${nomeProfissao(ultimoTile.obterBordaOeste())})`,
                   id: PosicaoSubsegmento.O2
               },
-              // SÓ adiciona o botão do Centro se a peça realmente tiver um MOSTEIRO!
               ...(ultimoTile.temMosteiro()
                   ? [{ label: '⛪ Centro: MOSTEIRO (Monge)', id: PosicaoSubsegmento.CENTRO }]
                   : [])
@@ -93,12 +114,34 @@ export function App() {
 
             {/* Lado Esquerdo: O Tabuleiro */}
             <div className="area-jogo">
-                <h1 style={{ marginBottom: '4px', fontSize: '24px' }}>
-                    🏰 Carcassonne (GRASP & GoF)
-                </h1>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <h1 style={{ marginBottom: '4px', fontSize: '24px' }}>
+                        🏰 Carcassonne (Padrões GRASP & GoF)
+                    </h1>
+                </div>
+
                 <p style={{ marginBottom: '12px', color: '#ffd166', fontWeight: 'bold', fontSize: '14px' }}>
-                    {gameManager.obterMensagemStatus()}
+                    {facade.obterMensagemStatus()}
                 </p>
+
+                {jogoFinalizado && (
+                    <div
+                        style={{
+                            backgroundColor: '#2a9d8f',
+                            color: '#fff',
+                            padding: '12px 16px',
+                            borderRadius: '8px',
+                            marginBottom: '12px',
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
+                        }}
+                    >
+                        <h3 style={{ margin: '0 0 4px 0' }}>🎉 Partida Encerrada!</h3>
+                        <p style={{ margin: 0 }}>
+                            Vencedor(es):{' '}
+                            <strong>{vencedores.map((v) => `${v.obterNome()} (${v.obterPontuacao()} pontos)`).join(', ')}</strong>
+                        </p>
+                    </div>
+                )}
 
                 <div
                     className="grid-tabuleiro"
@@ -128,7 +171,8 @@ export function App() {
                                     }}
                                     onClick={() => {
                                         if (faseAtual === 'POSICIONAR_TILE') {
-                                            gameManager.posicionarTileNoTabuleiro(x, y);
+                                            // Padrão Facade: executa ação através da fachada
+                                            facade.posicionarTile(x, y);
                                         }
                                     }}
                                     title={`Coordenada (${x}, ${y})`}
@@ -168,28 +212,48 @@ export function App() {
                 </div>
             </div>
 
-            {/* Lado Direito: Menu Lateral Compacto e com Scroll */}
+            {/* Lado Direito: Menu Lateral com Padrões GoF e GRASP */}
             <div className={`sidebar ${menuFechado ? 'fechada' : ''}`} id="menu-lateral">
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', paddingRight: '45px' }}>
-                    <button
-                        className="btn"
-                        style={{ flex: 1, padding: '8px', fontSize: '12px' }}
-                        onClick={() => gameManager.iniciarPartida(false)}
-                    >
-                        👥 2 Jogadores
-                    </button>
-                    <button
-                        className="btn"
-                        style={{ flex: 1, padding: '8px', fontSize: '12px' }}
-                        onClick={() => gameManager.iniciarPartida(true)}
-                    >
-                        🤖 Contra IA
-                    </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px', paddingRight: '45px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            className="btn"
+                            style={{ flex: 1, padding: '8px', fontSize: '12px' }}
+                            onClick={() => facade.iniciarNovaPartida(['Jogador 1', 'Jogador 2'])}
+                        >
+                            👥 2 Jogadores
+                        </button>
+                        <button
+                            className="btn"
+                            style={{ flex: 1, padding: '8px', fontSize: '12px' }}
+                            onClick={iniciarJogoComIA}
+                        >
+                            🤖 Contra IA
+                        </button>
+                    </div>
+
+                    {/* GoF Strategy: Seleção da Estratégia de Tomada de Decisão da IA */}
+                    <div style={{ backgroundColor: '#1e1e24', padding: '8px', borderRadius: '6px' }}>
+                        <label style={{ fontSize: '11px', color: '#ffd166', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                            🧠 GoF Strategy da IA:
+                        </label>
+                        <select
+                            style={{ width: '100%', padding: '6px', backgroundColor: '#2d3142', color: '#fff', border: '1px solid #4f5d75', borderRadius: '4px', fontSize: '12px' }}
+                            value={tipoEstrategiaIA}
+                            onChange={(e) => setTipoEstrategiaIA(e.target.value as any)}
+                        >
+                            <option value="FACIL">Estratégia Fácil (Primeira Válida)</option>
+                            <option value="AGRESSIVA">Estratégia Agressiva (Cidades e Escudos)</option>
+                            <option value="DEFENSIVA">Estratégia Defensiva (Fechamentos Rápidos)</option>
+                        </select>
+                    </div>
                 </div>
 
-                <h2 style={{ fontSize: '18px', margin: '4px 0 8px 0' }}>Jogadores</h2>
+                <h2 style={{ fontSize: '18px', margin: '4px 0 8px 0' }}>Participantes</h2>
                 {participantes.map((p, index) => {
-                    const ehVezDele = p === jogadorAtual;
+                    const ehVezDele = p === jogadorAtual && !jogoFinalizado;
+                    const ativo = p.estaAtivo();
+
                     return (
                         <div
                             key={index}
@@ -198,12 +262,24 @@ export function App() {
                                 padding: '10px 12px',
                                 marginBottom: '8px',
                                 borderLeft: `5px solid ${p.obterCor()}`,
-                                outline: ehVezDele ? '2px solid #ffffff' : 'none'
+                                outline: ehVezDele ? '2px solid #ffffff' : 'none',
+                                opacity: ativo ? 1 : 0.5
                             }}
                         >
-                            <h3 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>
-                                {p.obterNome()} {ehVezDele && '⬅️'}
-                            </h3>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h3 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>
+                                    {p.obterNome()} {ehVezDele && '⬅️'} {!ativo && '(Desistiu)'}
+                                </h3>
+                                {ativo && participantes.length > 1 && !jogoFinalizado && (
+                                    <button
+                                        style={{ background: 'none', border: 'none', color: '#e76f51', cursor: 'pointer', fontSize: '11px' }}
+                                        onClick={() => facade.removerParticipante(p)}
+                                        title="Desistir da partida"
+                                    >
+                                        Desistir
+                                    </button>
+                                )}
+                            </div>
                             <p style={{ margin: 0, fontSize: '13px' }}>
                                 🏆 Pontos: <strong>{p.obterPontuacao()}</strong> | 🧍 Meeples:{' '}
                                 <strong>{p.obterQuantidadeMeeplesDisponiveis()}</strong>
@@ -213,23 +289,23 @@ export function App() {
                 })}
 
                 <p style={{ fontSize: '12px', color: '#ccc', margin: '2px 0 10px 0' }}>
-                    📦 Peças restantes no baralho: <strong>{gameManager.obterQuantidadeBaralho()}</strong>
+                    📦 Peças restantes no baralho: <strong>{facade.obterQuantidadeBaralho()}</strong>
                 </p>
 
-                {/* Controles e Peça Atual logo acima para nunca cortar na tela! */}
-                <h2 style={{ fontSize: '18px', margin: '4px 0 8px 0' }}>Ações do Turno</h2>
+                {/* Controles e Peça Atual */}
+                <h2 style={{ fontSize: '18px', margin: '4px 0 8px 0' }}>Ações do Turno (Facade)</h2>
 
-                {faseAtual === 'COMPRAR_TILE' && (
+                {!jogoFinalizado && faseAtual === 'COMPRAR_TILE' && (
                     <button
                         className="btn"
                         style={{ backgroundColor: '#2a9d8f', borderColor: '#fff' }}
-                        onClick={() => gameManager.comprarTileDoTurno()}
+                        onClick={() => facade.comprarTile()}
                     >
                         🎴 Comprar Peça do Baralho
                     </button>
                 )}
 
-                {tileEmMaos && faseAtual === 'POSICIONAR_TILE' && (
+                {!jogoFinalizado && tileEmMaos && faseAtual === 'POSICIONAR_TILE' && (
                     <div
                         style={{
                             textAlign: 'center',
@@ -246,7 +322,7 @@ export function App() {
                             src={tileEmMaos.imagem}
                             alt={tileEmMaos.tipo}
                             title="Clique para girar 90°"
-                            onClick={() => gameManager.rotacionarTileAtual()}
+                            onClick={() => facade.rotacionarTile()}
                             style={{
                                 width: '75px',
                                 height: '75px',
@@ -264,14 +340,14 @@ export function App() {
                         <button
                             className="btn"
                             style={{ width: '100%', backgroundColor: '#e76f51' }}
-                            onClick={() => gameManager.rotacionarTileAtual()}
+                            onClick={() => facade.rotacionarTile()}
                         >
                             🔄 Girar Peça 90°
                         </button>
                     </div>
                 )}
 
-                {(faseAtual === 'POSICIONAR_MEEPLE' || faseAtual === 'ALOCAR_MEEPLE') && (
+                {!jogoFinalizado && (faseAtual === 'POSICIONAR_MEEPLE' || faseAtual === 'ALOCAR_MEEPLE') && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <p style={{ fontSize: '12px', margin: '0', color: '#ffd166' }}>
                             Escolha onde posicionar seu Meeple na peça destacada:
@@ -281,7 +357,7 @@ export function App() {
                                 key={pos.id}
                                 className="btn"
                                 style={{ padding: '8px', fontSize: '12px', textAlign: 'left' }}
-                                onClick={() => gameManager.alocarMeepleNoTileAtual(pos.id)}
+                                onClick={() => facade.alocarMeeple(pos.id)}
                             >
                                 {pos.label}
                             </button>
@@ -289,7 +365,7 @@ export function App() {
                         <button
                             className="btn"
                             style={{ backgroundColor: '#4a4e69', marginTop: '4px', padding: '8px' }}
-                            onClick={() => gameManager.finalizarTurnoSemMeeple()}
+                            onClick={() => facade.passarTurno()}
                         >
                             ⏭️ Não colocar Meeple (Passar Turno)
                         </button>

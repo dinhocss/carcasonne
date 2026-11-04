@@ -2,7 +2,7 @@ import { Tile } from './Tile';
 
 export class Tabuleiro {
     public readonly tamanho: number;
-    private tilesNoTabuleiro: (Tile | null)[][]; 
+    private tilesNoTabuleiro: (Tile | null)[][];
 
     constructor(tamanho: number = 11) {
         this.tamanho = tamanho;
@@ -37,10 +37,10 @@ export class Tabuleiro {
     public obterTilesAdjacentes(x: number, y: number): Tile[] {
         const vizinhos: Tile[] = [];
         const direcoes = [
-            { dx: 0, dy: -1 }, // Norte (cima)
-            { dx: 1, dy: 0 },  // Leste (direita)
-            { dx: 0, dy: 1 },  // Sul (baixo)
-            { dx: -1, dy: 0 }  // Oeste (esquerda)
+            { dx: 0, dy: -1 },
+            { dx: 1, dy: 0 },
+            { dx: 0, dy: 1 },
+            { dx: -1, dy: 0 }
         ];
 
         for (const dir of direcoes) {

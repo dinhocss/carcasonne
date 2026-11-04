@@ -4,7 +4,7 @@ import type { Meeple } from './Meeple';
 export interface DadosModeloTile {
     tipo: string;
     imagem: string;
-    bordas: [TipoTerreno, TipoTerreno, TipoTerreno, TipoTerreno]; // [Norte, Leste, Sul, Oeste]
+    bordas: [TipoTerreno, TipoTerreno, TipoTerreno, TipoTerreno];
     temEscudo: boolean;
 }
 
@@ -14,15 +14,14 @@ export class Tile {
     public readonly imagem: string;
     public readonly temEscudo: boolean;
 
-    // Estados rigorosamente mantidos pelo Information Expert
-    private bordas: [TipoTerreno, TipoTerreno, TipoTerreno, TipoTerreno]; // [Norte, Leste, Sul, Oeste]
+
+    private bordas: [TipoTerreno, TipoTerreno, TipoTerreno, TipoTerreno];
     private subsegmentos: TipoTerreno[];
     private meeplesAlocados: (Meeple | null)[];
     private posicao: Posicao | null = null;
-    private rotacao: number = 0; // 0, 90, 180, 270
+    private rotacao: number = 0;
 
-    // Conexões internas base para rotação 0
-    // Índices de bordas: 0 = Norte, 1 = Leste, 2 = Sul, 3 = Oeste
+
     private static readonly CONEXOES_BASE: Record<string, number[][]> = {
         'CIDADE_1_LADO': [[0]],
         'CIDADE_1_LADO_CRUZAMENTO_3_ESTRADAS': [[0], [1], [2], [3]],
@@ -63,26 +62,18 @@ export class Tile {
         const centro: TipoTerreno = dados.tipo.includes('MOSTEIRO') ? 'MOSTEIRO' : 'CAMPO';
 
         this.subsegmentos = [
-            norte, norte, norte, // 0, 1, 2 (Norte)
-            leste, leste, leste, // 3, 4, 5 (Leste)
-            sul,   sul,   sul,   // 6, 7, 8 (Sul)
-            oeste, oeste, oeste, // 9, 10, 11 (Oeste)
-            centro               // 12 (Centro)
+            norte, norte, norte,
+            leste, leste, leste,
+            sul, sul, sul,
+            oeste, oeste, oeste,
+            centro
         ];
     }
 
-    /**
-     * Rotaciona a peça em 90 graus no sentido horário.
-     * Atualiza o estado da rotação, a ordem das bordas e dos subsegmentos.
-     */
     public rotacionar(): void {
         this.rotacao = (this.rotacao + 90) % 360;
 
-        // Atualização rigorosa da ordem das bordas:
-        // Novo Norte = Antigo Oeste
-        // Novo Leste = Antigo Norte
-        // Novo Sul = Antigo Leste
-        // Novo Oeste = Antigo Sul
+
         const [n, l, s, o] = this.bordas;
         this.bordas = [o, n, l, s];
 
@@ -101,7 +92,7 @@ export class Tile {
 
     public obterBordaNorte(): TipoTerreno { return this.bordas[0]; }
     public obterBordaLeste(): TipoTerreno { return this.bordas[1]; }
-    public obterBordaSul(): TipoTerreno   { return this.bordas[2]; }
+    public obterBordaSul(): TipoTerreno { return this.bordas[2]; }
     public obterBordaOeste(): TipoTerreno { return this.bordas[3]; }
 
     public temMosteiro(): boolean {
@@ -112,9 +103,7 @@ export class Tile {
         return this.subsegmentos[idSubsegmento];
     }
 
-    /**
-     * Retorna as posições válidas de alocação de Meeple suportadas por este tile.
-     */
+
     public obterPosicoesValidasMeeple(): number[] {
         const posicoes: number[] = [
             PosicaoSubsegmento.N2,
@@ -128,9 +117,7 @@ export class Tile {
         return posicoes;
     }
 
-    /**
-     * Mapeia um subsegmento para o índice da borda correspondente (0: N, 1: L, 2: S, 3: O, -1: Centro).
-     */
+
     public static subsegmentoParaBorda(idSubsegmento: number): number {
         if (idSubsegmento >= 0 && idSubsegmento <= 2) return 0;
         if (idSubsegmento >= 3 && idSubsegmento <= 5) return 1;
@@ -139,9 +126,6 @@ export class Tile {
         return -1;
     }
 
-    /**
-     * Retorna o subsegmento representativo padrão de uma borda (N2=1, L2=4, S2=7, O2=10).
-     */
     public static bordaParaSubsegmentoPrincipal(bordaIndex: number): number {
         switch (bordaIndex) {
             case 0: return PosicaoSubsegmento.N2;
@@ -152,9 +136,7 @@ export class Tile {
         }
     }
 
-    /**
-     * Retorna as bordas conectadas internamente na orientação atual da peça.
-     */
+
     public obterBordasConectadasInternamente(bordaIndex: number): number[] {
         const gruposBase = Tile.CONEXOES_BASE[this.tipo] || [];
         const k = Math.floor(this.rotacao / 90) % 4;

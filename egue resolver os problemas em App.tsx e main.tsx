@@ -1,0 +1,1587 @@
+warning: in the working copy of 'src/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/models/GameManager.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/models/Participante.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/models/TabuleiroManager.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/models/TileManager.ts', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/src/App.tsx b/src/App.tsx[m
+[1mindex 1969878..55ba65c 100644[m
+[1m--- a/src/App.tsx[m
+[1m+++ b/src/App.tsx[m
+[36m@@ -1,7 +1,14 @@[m
+[31m-import { useEffect, useState } from 'react';[m
+[32m+[m[32mimport { useEffect, useMemo, useState } from 'react';[m
+ import './style.css';[m
+[31m-import { GameManager, type IGameObserver } from './models/GameManager';[m
+[32m+[m[32mimport { CarcasonneFacade } from './models/CarcasonneFacade';[m
+[32m+[m[32mimport type { IGameObserver } from './models/GameManager';[m
+ import { PosicaoSubsegmento, type TipoTerreno } from './models/Enums';[m
+[32m+[m[32mimport {[m
+[32m+[m[32m    EstrategiaIAPrimeiraValida,[m
+[32m+[m[32m    EstrategiaIAAgressiva,[m
+[32m+[m[32m    EstrategiaIADefensiva,[m
+[32m+[m[32m    type EstrategiaIA[m
+[32m+[m[32m} from './models/Participante';[m
+ [m
+ // Converte o terreno no nome da profissão do Meeple para ajudar o jogador na tela[m
+ function nomeProfissao(terreno: TipoTerreno): string {[m
+[36m@@ -13,24 +20,21 @@[m [mfunction nomeProfissao(terreno: TipoTerreno): string {[m
+     }[m
+ }[m
+ [m
+[31m-// Calcula onde desenhar a bolinha do Meeple dentro do quadrado 70x70 da peça![m
+[32m+[m[32m// Calcula onde desenhar a bolinha do Meeple dentro do quadrado 64x64 da peça[m
+ function obterEstiloPosicaoMeeple(idSubsegmento: number): React.CSSProperties {[m
+[31m-    // Norte (0, 1, 2) -> Topo[m
+     if (idSubsegmento <= 2) return { top: '4px', left: '50%', transform: 'translateX(-50%)' };[m
+[31m-    // Leste (3, 4, 5) -> Direita[m
+     if (idSubsegmento <= 5) return { right: '4px', top: '50%', transform: 'translateY(-50%)' };[m
+[31m-    // Sul (6, 7, 8) -> Baixo[m
+     if (idSubsegmento <= 8) return { bottom: '4px', left: '50%', transform: 'translateX(-50%)' };[m
+[31m-    // Oeste (9, 10, 11) -> Esquerda[m
+     if (idSubsegmento <= 11) return { left: '4px', top: '50%', transform: 'translateY(-50%)' };[m
+[31m-    // Centro (12) -> Meio exato[m
+     return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };[m
+ }[m
+ [m
+ export function App() {[m
+[31m-    const gameManager = GameManager.getInstance();[m
+[32m+[m[32m    // Padrão GoF Facade & GRASP Controller: UI se comunica exclusivamente com a CarcasonneFacade[m
+[32m+[m[32m    const facade = useMemo(() => new CarcasonneFacade(), []);[m
+     const [, setTick] = useState(0);[m
+     const [menuFechado, setMenuFechado] = useState(false);[m
+[32m+[m[32m    const [tipoEstrategiaIA, setTipoEstrategiaIA] = useState<'FACIL' | 'AGRESSIVA' | 'DEFENSIVA'>('FACIL');[m
+ [m
+     useEffect(() => {[m
+         const observadorDaTela: IGameObserver = {[m
+[36m@@ -39,23 +43,41 @@[m [mexport function App() {[m
+             }[m
+         };[m
+ [m
+[31m-        gameManager.adicionarObservador(observadorDaTela);[m
+[31m-        gameManager.iniciarPartida(false);[m
+[32m+[m[32m        facade.adicionarObservador(observadorDaTela);[m
+[32m+[m[32m        facade.iniciarNovaPartida(['Jogador 1 (Você)', 'Jogador 2']);[m
+ [m
+         return () => {[m
+[31m-            gameManager.removerObservador(observadorDaTela);[m
+[32m+[m[32m            facade.removerObservador(observadorDaTela);[m
+         };[m
+[31m-    }, [gameManager]);[m
+[32m+[m[32m    }, [facade]);[m
+ [m
+[31m-    const tabuleiro = gameManager.obterTabuleiro();[m
+[32m+[m[32m    const obterInstanciaEstrategiaIA = (): EstrategiaIA => {[m
+[32m+[m[32m        switch (tipoEstrategiaIA) {[m
+[32m+[m[32m            case 'AGRESSIVA': return new EstrategiaIAAgressiva();[m
+[32m+[m[32m            case 'DEFENSIVA': return new EstrategiaIADefensiva();[m
+[32m+[m[32m            default: return new EstrategiaIAPrimeiraValida();[m
+[32m+[m[32m        }[m
+[32m+[m[32m    };[m
+[32m+[m
+[32m+[m[32m    const iniciarJogoComIA = () => {[m
+[32m+[m[32m        facade.iniciarPartidaContraIA([m
+[32m+[m[32m            'Jogador 1 (Você)',[m
+[32m+[m[32m            `Bot Carcassonne (${tipoEstrategiaIA})`,[m
+[32m+[m[32m            obterInstanciaEstrategiaIA()[m
+[32m+[m[32m        );[m
+[32m+[m[32m    };[m
+[32m+[m
+[32m+[m[32m    const tabuleiro = facade.obterTabuleiro();[m
+     const grid = tabuleiro.obterGrid();[m
+[31m-    const participantes = gameManager.obterParticipantes();[m
+[31m-    const jogadorAtual = gameManager.obterJogadorAtual();[m
+[31m-    const tileEmMaos = gameManager.obterTileEmMaos();[m
+[31m-    const ultimoTile = gameManager.obterUltimoTilePosicionado();[m
+[31m-    const faseAtual = gameManager.obterFaseAtual();[m
+[32m+[m[32m    const participantes = facade.obterParticipantes();[m
+[32m+[m[32m    const jogadorAtual = facade.obterJogadorAtual();[m
+[32m+[m[32m    const tileEmMaos = facade.obterTileAtual();[m
+[32m+[m[32m    const ultimoTile = facade.obterUltimoTilePosicionado();[m
+[32m+[m[32m    const faseAtual = facade.obterFaseAtual();[m
+[32m+[m[32m    const jogoFinalizado = facade.estaFinalizada();[m
+[32m+[m[32m    const vencedores = jogoFinalizado ? facade.obterVencedores() : [];[m
+ [m
+[31m-    // Gera as opções reais de Meeple baseadas nos terrenos da peça que acabou de ser colocada[m
+[32m+[m[32m    // Opções de subsegmentos válidos para colocar o Meeple[m
+     const opcoesMeepleDisponiveis = ultimoTile[m
+         ? [[m
+               {[m
+[36m@@ -74,7 +96,6 @@[m [mexport function App() {[m
+                   label: `⬅️ Oeste: ${ultimoTile.obterBordaOeste()} (${nomeProfissao(ultimoTile.obterBordaOeste())})`,[m
+                   id: PosicaoSubsegmento.O2[m
+               },[m
+[31m-              // SÓ adiciona o botão do Centro se a peça realmente tiver um MOSTEIRO![m
+               ...(ultimoTile.temMosteiro()[m
+                   ? [{ label: '⛪ Centro: MOSTEIRO (Monge)', id: PosicaoSubsegmento.CENTRO }][m
+                   : [])[m
+[36m@@ -93,13 +114,35 @@[m [mexport function App() {[m
+ [m
+             {/* Lado Esquerdo: O Tabuleiro */}[m
+             <div className="area-jogo">[m
+[31m-                <h1 style={{ marginBottom: '4px', fontSize: '24px' }}>[m
+[31m-                    🏰 Carcassonne (GRASP & GoF)[m
+[31m-                </h1>[m
+[32m+[m[32m                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>[m
+[32m+[m[32m                    <h1 style={{ marginBottom: '4px', fontSize: '24px' }}>[m
+[32m+[m[32m                        🏰 Carcassonne (Padrões GRASP & GoF)[m
+[32m+[m[32m                    </h1>[m
+[32m+[m[32m                </div>[m
+[32m+[m
+                 <p style={{ marginBottom: '12px', color: '#ffd166', fontWeight: 'bold', fontSize: '14px' }}>[m
+[31m-                    {gameManager.obterMensagemStatus()}[m
+[32m+[m[32m                    {facade.obterMensagemStatus()}[m
+                 </p>[m
+ [m
+[32m+[m[32m                {jogoFinalizado && ([m
+[32m+[m[32m                    <div[m
+[32m+[m[32m                        style={{[m
+[32m+[m[32m                            backgroundColor: '#2a9d8f',[m
+[32m+[m[32m                            color: '#fff',[m
+[32m+[m[32m                            padding: '12px 16px',[m
+[32m+[m[32m                            borderRadius: '8px',[m
+[32m+[m[32m                            marginBottom: '12px',[m
+[32m+[m[32m                            boxShadow: '0 4px 10px rgba(0,0,0,0.3)'[m
+[32m+[m[32m                        }}[m
+[32m+[m[32m                    >[m
+[32m+[m[32m                        <h3 style={{ margin: '0 0 4px 0' }}>🎉 Partida Encerrada!</h3>[m
+[32m+[m[32m                        <p style={{ margin: 0 }}>[m
+[32m+[m[32m                            Vencedor(es):{' '}[m
+[32m+[m[32m                            <strong>{vencedores.map((v) => `${v.obterNome()} (${v.obterPontuacao()} pontos)`).join(', ')}</strong>[m
+[32m+[m[32m                        </p>[m
+[32m+[m[32m                    </div>[m
+[32m+[m[32m                )}[m
+[32m+[m
+                 <div[m
+                     className="grid-tabuleiro"[m
+                     style={{[m
+[36m@@ -128,7 +171,8 @@[m [mexport function App() {[m
+                                     }}[m
+                                     onClick={() => {[m
+                                         if (faseAtual === 'POSICIONAR_TILE') {[m
+[31m-                                            gameManager.posicionarTileNoTabuleiro(x, y);[m
+[32m+[m[32m                                            // Padrão Facade: executa ação através da fachada[m
+[32m+[m[32m                                            facade.posicionarTile(x, y);[m
+                                         }[m
+                                     }}[m
+                                     title={`Coordenada (${x}, ${y})`}[m
+[36m@@ -168,28 +212,48 @@[m [mexport function App() {[m
+                 </div>[m
+             </div>[m
+ [m
+[31m-            {/* Lado Direito: Menu Lateral Compacto e com Scroll */}[m
+[32m+[m[32m            {/* Lado Direito: Menu Lateral com Padrões GoF e GRASP */}[m
+             <div className={`sidebar ${menuFechado ? 'fechada' : ''}`} id="menu-lateral">[m
+[31m-                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', paddingRight: '45px' }}>[m
+[31m-                    <button[m
+[31m-                        className="btn"[m
+[31m-                        style={{ flex: 1, padding: '8px', fontSize: '12px' }}[m
+[31m-                        onClick={() => gameManager.iniciarPartida(false)}[m
+[31m-                    >[m
+[31m-                        👥 2 Jogadores[m
+[31m-                    </button>[m
+[31m-                    <button[m
+[31m-                        className="btn"[m
+[31m-                        style={{ flex: 1, padding: '8px', fontSize: '12px' }}[m
+[31m-                        onClick={() => gameManager.iniciarPartida(true)}[m
+[31m-                    >[m
+[31m-                        🤖 Contra IA[m
+[31m-                    </button>[m
+[32m+[m[32m                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px', paddingRight: '45px' }}>[m
+[32m+[m[32m                    <div style={{ display: 'flex', gap: '8px' }}>[m
+[32m+[m[32m                        <button[m
+[32m+[m[32m                            className="btn"[m
+[32m+[m[32m                            style={{ flex: 1, padding: '8px', fontSize: '12px' }}[m
+[32m+[m[32m                            onClick={() => facade.iniciarNovaPartida(['Jogador 1', 'Jogador 2'])}[m
+[32m+[m[32m                        >[m
+[32m+[m[32m                            👥 2 Jogadores[m
+[32m+[m[32m                        </button>[m
+[32m+[m[32m                        <button[m
+[32m+[m[32m                            className="btn"[m
+[32m+[m[32m                            style={{ flex: 1, padding: '8px', fontSize: '12px' }}[m
+[32m+[m[32m                            onClick={iniciarJogoComIA}[m
+[32m+[m[32m                        >[m
+[32m+[m[32m                            🤖 Contra IA[m
+[32m+[m[32m                        </button>[m
+[32m+[m[32m                    </div>[m
+[32m+[m
+[32m+[m[32m                    {/* GoF Strategy: Seleção da Estratégia de Tomada de Decisão da IA */}[m
+[32m+[m[32m                    <div style={{ backgroundColor: '#1e1e24', padding: '8px', borderRadius: '6px' }}>[m
+[32m+[m[32m                        <label style={{ fontSize: '11px', color: '#ffd166', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>[m
+[32m+[m[32m                            🧠 GoF Strategy da IA:[m
+[32m+[m[32m                        </label>[m
+[32m+[m[32m                        <select[m
+[32m+[m[32m                            style={{ width: '100%', padding: '6px', backgroundColor: '#2d3142', color: '#fff', border: '1px solid #4f5d75', borderRadius: '4px', fontSize: '12px' }}[m
+[32m+[m[32m                            value={tipoEstrategiaIA}[m
+[32m+[m[32m                            onChange={(e) => setTipoEstrategiaIA(e.target.value as any)}[m
+[32m+[m[32m                        >[m
+[32m+[m[32m                            <option value="FACIL">Estratégia Fácil (Primeira Válida)</option>[m
+[32m+[m[32m                            <option value="AGRESSIVA">Estratégia Agressiva (Cidades e Escudos)</option>[m
+[32m+[m[32m                            <option value="DEFENSIVA">Estratégia Defensiva (Fechamentos Rápidos)</option>[m
+[32m+[m[32m                        </select>[m
+[32m+[m[32m                    </div>[m
+                 </div>[m
+ [m
+[31m-                <h2 style={{ fontSize: '18px', margin: '4px 0 8px 0' }}>Jogadores</h2>[m
+[32m+[m[32m                <h2 style={{ fontSize: '18px', margin: '4px 0 8px 0' }}>Participantes</h2>[m
+                 {participantes.map((p, index) => {[m
+[31m-                    const ehVezDele = p === jogadorAtual;[m
+[32m+[m[32m                    const ehVezDele = p === jogadorAtual && !jogoFinalizado;[m
+[32m+[m[32m                    const ativo = p.estaAtivo();[m
+[32m+[m
+                     return ([m
+                         <div[m
+                             key={index}[m
+[36m@@ -198,12 +262,24 @@[m [mexport function App() {[m
+                                 padding: '10px 12px',[m
+                                 marginBottom: '8px',[m
+                                 borderLeft: `5px solid ${p.obterCor()}`,[m
+[31m-                                outline: ehVezDele ? '2px solid #ffffff' : 'none'[m
+[32m+[m[32m                                outline: ehVezDele ? '2px solid #ffffff' : 'none',[m
+[32m+[m[32m                                opacity: ativo ? 1 : 0.5[m
+                             }}[m
+                         >[m
+[31m-                            <h3 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>[m
+[31m-                                {p.obterNome()} {ehVezDele && '⬅️'}[m
+[31m-                            </h3>[m
+[32m+[m[32m                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>[m
+[32m+[m[32m                                <h3 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>[m
+[32m+[m[32m                                    {p.obterNome()} {ehVezDele && '⬅️'} {!ativo && '(Desistiu)'}[m
+[32m+[m[32m                                </h3>[m
+[32m+[m[32m                                {ativo && participantes.length > 1 && !jogoFinalizado && ([m
+[32m+[m[32m                                    <button[m
+[32m+[m[32m                                        style={{ background: 'none', border: 'none', color: '#e76f51', cursor: 'pointer', fontSize: '11px' }}[m
+[32m+[m[32m                                        onClick={() => facade.removerParticipante(p)}[m
+[32m+[m[32m                                        title="Desistir da partida"[m
+[32m+[m[32m                                    >[m
+[32m+[m[32m                                        Desistir[m
+[32m+[m[32m                                    </button>[m
+[32m+[m[32m                                )}[m
+[32m+[m[32m                            </div>[m
+                             <p style={{ margin: 0, fontSize: '13px' }}>[m
+                                 🏆 Pontos: <strong>{p.obterPontuacao()}</strong> | 🧍 Meeples:{' '}[m
+                                 <strong>{p.obterQuantidadeMeeplesDisponiveis()}</strong>[m
+[36m@@ -213,23 +289,23 @@[m [mexport function App() {[m
+                 })}[m
+ [m
+                 <p style={{ fontSize: '12px', color: '#ccc', margin: '2px 0 10px 0' }}>[m
+[31m-                    📦 Peças restantes no baralho: <strong>{gameManager.obterQuantidadeBaralho()}</strong>[m
+[32m+[m[32m                    📦 Peças restantes no baralho: <strong>{facade.obterQuantidadeBaralho()}</strong>[m
+                 </p>[m
+ [m
+[31m-                {/* Controles e Peça Atual logo acima para nunca cortar na tela! */}[m
+[31m-                <h2 style={{ fontSize: '18px', margin: '4px 0 8px 0' }}>Ações do Turno</h2>[m
+[32m+[m[32m                {/* Controles e Peça Atual */}[m
+[32m+[m[32m                <h2 style={{ fontSize: '18px', margin: '4px 0 8px 0' }}>Ações do Turno (Facade)</h2>[m
+ [m
+[31m-                {faseAtual === 'COMPRAR_TILE' && ([m
+[32m+[m[32m                {!jogoFinalizado && faseAtual === 'COMPRAR_TILE' && ([m
+                     <button[m
+                         className="btn"[m
+                         style={{ backgroundColor: '#2a9d8f', borderColor: '#fff' }}[m
+[31m-                        onClick={() => gameManager.comprarTileDoTurno()}[m
+[32m+[m[32m                        onClick={() => facade.comprarTile()}[m
+                     >[m
+                         🎴 Comprar Peça do Baralho[m
+                     </button>[m
+                 )}[m
+ [m
+[31m-                {tileEmMaos && faseAtual === 'POSICIONAR_TILE' && ([m
+[32m+[m[32m                {!jogoFinalizado && tileEmMaos && faseAtual === 'POSICIONAR_TILE' && ([m
+                     <div[m
+                         style={{[m
+                             textAlign: 'center',[m
+[36m@@ -246,7 +322,7 @@[m [mexport function App() {[m
+                             src={tileEmMaos.imagem}[m
+                             alt={tileEmMaos.tipo}[m
+                             title="Clique para girar 90°"[m
+[31m-                            onClick={() => gameManager.rotacionarTileAtual()}[m
+[32m+[m[32m                            onClick={() => facade.rotacionarTile()}[m
+                             style={{[m
+                                 width: '75px',[m
+                                 height: '75px',[m
+[36m@@ -264,14 +340,14 @@[m [mexport function App() {[m
+                         <button[m
+                             className="btn"[m
+                             style={{ width: '100%', backgroundColor: '#e76f51' }}[m
+[31m-                            onClick={() => gameManager.rotacionarTileAtual()}[m
+[32m+[m[32m                            onClick={() => facade.rotacionarTile()}[m
+                         >[m
+                             🔄 Girar Peça 90°[m
+                         </button>[m
+                     </div>[m
+                 )}[m
+ [m
+[31m-                {(faseAtual === 'POSICIONAR_MEEPLE' || faseAtual === 'ALOCAR_MEEPLE') && ([m
+[32m+[m[32m                {!jogoFinalizado && (faseAtual === 'POSICIONAR_MEEPLE' || faseAtual === 'ALOCAR_MEEPLE') && ([m
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>[m
+                         <p style={{ fontSize: '12px', margin: '0', color: '#ffd166' }}>[m
+                             Escolha onde posicionar seu Meeple na peça destacada:[m
+[36m@@ -281,7 +357,7 @@[m [mexport function App() {[m
+                                 key={pos.id}[m
+                                 className="btn"[m
+                                 style={{ padding: '8px', fontSize: '12px', textAlign: 'left' }}[m
+[31m-                                onClick={() => gameManager.alocarMeepleNoTileAtual(pos.id)}[m
+[32m+[m[32m                                onClick={() => facade.alocarMeeple(pos.id)}[m
+                             >[m
+                                 {pos.label}[m
+                             </button>[m
+[36m@@ -289,7 +365,7 @@[m [mexport function App() {[m
+                         <button[m
+                             className="btn"[m
+                             style={{ backgroundColor: '#4a4e69', marginTop: '4px', padding: '8px' }}[m
+[31m-                            onClick={() => gameManager.finalizarTurnoSemMeeple()}[m
+[32m+[m[32m                            onClick={() => facade.passarTurno()}[m
+                         >[m
+                             ⏭️ Não colocar Meeple (Passar Turno)[m
+                         </button>[m
+[1mdiff --git a/src/main.tsx b/src/main.tsx[m
+[1m--- a/src/main.tsx[m
+[1m+++ b/src/main.tsx[m
+[36m@@ -1,6 +1,6 @@[m
+ import { StrictMode } from 'react';[m
+ import { createRoot } from 'react-dom/client';[m
+[31m-import App from './App.tsx';[m
+[32m+[m[32mimport App from './App';[m
+ [m
+ createRoot(document.getElementById('root')!).render([m
+     <StrictMode>[m
+[1mdiff --git a/src/models/GameManager.ts b/src/models/GameManager.ts[m
+[1mindex ccff9f3..dfaa71a 100644[m
+[1m--- a/src/models/GameManager.ts[m
+[1m+++ b/src/models/GameManager.ts[m
+[36m@@ -17,18 +17,19 @@[m [mexport type FaseDoTurno =[m
+     | 'FIM_DE_JOGO';[m
+ [m
+ /**[m
+[31m- * GameManager (Controller):[m
+[31m- * Atua ESTRITAMENTE como orquestrador do fluxo do turno:[m
+[31m- * Fases: COMPRAR_TILE -> POSICIONAR_TILE -> POSICIONAR_MEEPLE -> FINALIZAR_TURNO.[m
+[31m- * NÃO contém regras de validação de vizinhança nem cálculos diretos de pontuação.[m
+[32m+[m[32m * GameManager (GRASP Controller & GoF Singleton):[m
+[32m+[m[32m * Centraliza o gerenciamento do fluxo do jogo e orquestra a alternância dos turnos.[m
+[32m+[m[32m * Construtor privado e ponto de acesso global estático através de getInstance().[m
+  */[m
+ export class GameManager {[m
+[31m-    private static instancia: GameManager | null = null;[m
+[32m+[m[32m    private static instance: GameManager | null = null;[m
+     private observadores: IGameObserver[] = [];[m
+ [m
+     private participantes: Participante[] = [];[m
+     private jogadorAtual: Participante;[m
+     private indiceJogadorAtual: number = 0;[m
+[32m+[m[32m    private partidaFinalizada: boolean = false;[m
+[32m+[m
+     private tileManager: TileManager;[m
+     private tabuleiroManager: TabuleiroManager;[m
+ [m
+[36m@@ -36,9 +37,11 @@[m [mexport class GameManager {[m
+     private faseAtual: FaseDoTurno = 'COMPRAR_TILE';[m
+     private mensagemStatus: string = 'Bem-vindo ao Carcassonne!';[m
+ [m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Construtor privado (GoF Singleton).[m
+[32m+[m[32m     */[m
+     private constructor() {[m
+[31m-        const tabuleiro = new Tabuleiro(11);[m
+[31m-        this.tabuleiroManager = new TabuleiroManager(tabuleiro);[m
+[32m+[m[32m        this.tabuleiroManager = TabuleiroManager.getInstance();[m
+         this.tileManager = new TileManager();[m
+ [m
+         this.participantes = [[m
+[36m@@ -48,11 +51,14 @@[m [mexport class GameManager {[m
+         this.jogadorAtual = this.participantes[0];[m
+     }[m
+ [m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Ponto de acesso global estático (GoF Singleton).[m
+[32m+[m[32m     */[m
+     public static getInstance(): GameManager {[m
+[31m-        if (!GameManager.instancia) {[m
+[31m-            GameManager.instancia = new GameManager();[m
+[32m+[m[32m        if (!GameManager.instance) {[m
+[32m+[m[32m            GameManager.instance = new GameManager();[m
+         }[m
+[31m-        return GameManager.instancia;[m
+[32m+[m[32m        return GameManager.instance;[m
+     }[m
+ [m
+     public adicionarObservador(obs: IGameObserver): void {[m
+[36m@@ -71,21 +77,36 @@[m [mexport class GameManager {[m
+         }[m
+     }[m
+ [m
+[31m-    public iniciarPartida(comIA: boolean = false): void {[m
+[31m-        const tabuleiro = new Tabuleiro(11);[m
+[31m-        this.tabuleiroManager = new TabuleiroManager(tabuleiro);[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Inicia uma nova partida configurando participantes, reiniciando o tabuleiro Singleton e o baralho.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public iniciarPartida(comIA: boolean = false, nomesJogadores?: string[]): void {[m
+[32m+[m[32m        this.tabuleiroManager.reiniciar();[m
+         this.tileManager = new TileManager();[m
+[32m+[m[32m        this.partidaFinalizada = false;[m
+[32m+[m
+[32m+[m[32m        const nome1 = nomesJogadores && nomesJogadores[0] ? nomesJogadores[0] : 'Jogador 1';[m
+[32m+[m[32m        const nome2 = nomesJogadores && nomesJogadores[1] ? nomesJogadores[1] : (comIA ? 'Bot Carcassonne (IA)' : 'Jogador 2');[m
+ [m
+         this.participantes = [[m
+[31m-            new Jogador('Jogador 1', '#4CAF50'),[m
+[31m-            comIA ? new IA('Bot Carcassonne (IA)', '#FF9800') : new Jogador('Jogador 2', '#2196F3')[m
+[32m+[m[32m            new Jogador(nome1, '#4CAF50'),[m
+[32m+[m[32m            comIA ? new IA(nome2, '#FF9800') : new Jogador(nome2, '#2196F3')[m
+         ];[m
+[32m+[m
+[32m+[m[32m        // Suporta mais jogadores se informados na lista[m
+[32m+[m[32m        if (nomesJogadores && nomesJogadores.length > 2) {[m
+[32m+[m[32m            const cores = ['#E91E63', '#9C27B0', '#00BCD4', '#FF5722'];[m
+[32m+[m[32m            for (let i = 2; i < nomesJogadores.length; i++) {[m
+[32m+[m[32m                this.participantes.push(new Jogador(nomesJogadores[i], cores[(i - 2) % cores.length]));[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m
+         this.indiceJogadorAtual = 0;[m
+         this.jogadorAtual = this.participantes[0];[m
+         this.ultimoTilePosicionado = null;[m
+ [m
+         // Peça inicial posicionada no centro do tabuleiro (5, 5)[m
+[31m-        const pecaInicial = this.tileManager.comprarTile();[m
+[32m+[m[32m        const pecaInicial = this.tileManager.comprarTile(this.tabuleiroManager);[m
+         if (pecaInicial) {[m
+             this.tabuleiroManager.obterTabuleiro().posicionarTile(pecaInicial, 5, 5);[m
+             this.tileManager.limparTileAtual();[m
+[36m@@ -100,16 +121,15 @@[m [mexport class GameManager {[m
+      * Fase: COMPRAR_TILE[m
+      */[m
+     public comprarTileDoTurno(): Tile | null {[m
+[32m+[m[32m        if (this.partidaFinalizada) return null;[m
+[32m+[m
+         if (this.faseAtual !== 'COMPRAR_TILE') {[m
+             return this.tileManager.obterTileAtual();[m
+         }[m
+ [m
+[31m-        // Delegado ao TileManager com descarte automático de peças impossíveis[m
+         const tile = this.tileManager.comprarTile(this.tabuleiroManager);[m
+         if (!tile) {[m
+[31m-            this.faseAtual = 'FIM_DE_JOGO';[m
+[31m-            this.mensagemStatus = 'O baralho acabou ou não há mais jogadas possíveis! Fim de jogo!';[m
+[31m-            this.notificarObservadores();[m
+[32m+[m[32m            this.finalizarPartida();[m
+             return null;[m
+         }[m
+ [m
+[36m@@ -120,7 +140,7 @@[m [mexport class GameManager {[m
+     }[m
+ [m
+     public rotacionarTileAtual(): void {[m
+[31m-        if (this.faseAtual !== 'POSICIONAR_TILE') return;[m
+[32m+[m[32m        if (this.faseAtual !== 'POSICIONAR_TILE' || this.partidaFinalizada) return;[m
+ [m
+         this.tileManager.rotacionarTileAtualDoBaralho();[m
+         this.notificarObservadores();[m
+[36m@@ -130,7 +150,7 @@[m [mexport class GameManager {[m
+      * Fase: POSICIONAR_TILE[m
+      */[m
+     public posicionarTileNoTabuleiro(x: number, y: number): boolean {[m
+[31m-        if (this.faseAtual !== 'POSICIONAR_TILE') return false;[m
+[32m+[m[32m        if (this.faseAtual !== 'POSICIONAR_TILE' || this.partidaFinalizada) return false;[m
+ [m
+         const tileAtual = this.tileManager.obterTileAtual();[m
+         if (!tileAtual) return false;[m
+[36m@@ -163,12 +183,12 @@[m [mexport class GameManager {[m
+     public alocarMeepleNoTileAtual(idSubsegmento: number): boolean {[m
+         if ([m
+             (this.faseAtual !== 'POSICIONAR_MEEPLE' && this.faseAtual !== 'ALOCAR_MEEPLE') ||[m
+[31m-            !this.ultimoTilePosicionado[m
+[32m+[m[32m            !this.ultimoTilePosicionado ||[m
+[32m+[m[32m            this.partidaFinalizada[m
+         ) {[m
+             return false;[m
+         }[m
+ [m
+[31m-        // Validação estritamente delegada ao TabuleiroManager[m
+         if (!this.tabuleiroManager.validarPosicaoMeeple(this.ultimoTilePosicionado, idSubsegmento)) {[m
+             this.mensagemStatus = 'Não é possível colocar um Meeple nessa posição! (Estrutura já ocupada ou inválida).';[m
+             this.notificarObservadores();[m
+[36m@@ -201,15 +221,20 @@[m [mexport class GameManager {[m
+         this.faseAtual = 'FINALIZAR_TURNO';[m
+ [m
+         if (this.ultimoTilePosicionado) {[m
+[31m-            // Fechamento e pontuação estritamente delegados ao TabuleiroManager[m
+             this.tabuleiroManager.verificarEPontuarFechamentos(this.ultimoTilePosicionado);[m
+         }[m
+ [m
+[31m-        this.proximoTurno();[m
+[32m+[m[32m        if (this.verificarFimDePartida()) {[m
+[32m+[m[32m            this.finalizarPartida();[m
+[32m+[m[32m        } else {[m
+[32m+[m[32m            this.proximoTurno();[m
+[32m+[m[32m        }[m
+     }[m
+ [m
+     public proximoTurno(): void {[m
+[31m-        // Se ainda estava na fase de meeple e o jogador chamou proximoTurno diretamente:[m
+[32m+[m[32m        if (this.partidaFinalizada) return;[m
+[32m+[m
+[32m+[m[32m        // Se ainda estava na fase de meeple e o jogador passou:[m
+         if ([m
+             (this.faseAtual === 'POSICIONAR_MEEPLE' || this.faseAtual === 'ALOCAR_MEEPLE') &&[m
+             this.ultimoTilePosicionado[m
+[36m@@ -217,15 +242,23 @@[m [mexport class GameManager {[m
+             this.tabuleiroManager.verificarEPontuarFechamentos(this.ultimoTilePosicionado);[m
+         }[m
+ [m
+[31m-        if (this.tileManager.obterQuantidadeRestante() === 0) {[m
+[31m-            this.faseAtual = 'FIM_DE_JOGO';[m
+[31m-            this.mensagemStatus = 'Fim de jogo! Todas as peças foram jogadas.';[m
+[31m-            this.notificarObservadores();[m
+[32m+[m[32m        if (this.verificarFimDePartida()) {[m
+[32m+[m[32m            this.finalizarPartida();[m
+             return;[m
+         }[m
+ [m
+[31m-        this.indiceJogadorAtual = (this.indiceJogadorAtual + 1) % this.participantes.length;[m
+[31m-        this.jogadorAtual = this.participantes[this.indiceJogadorAtual];[m
+[32m+[m[32m        const participantesAtivos = this.participantes.filter((p) => p.estaAtivo());[m
+[32m+[m[32m        if (participantesAtivos.length <= 1 && this.participantes.length > 1) {[m
+[32m+[m[32m            this.finalizarPartida();[m
+[32m+[m[32m            return;[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        // Avança até o próximo participante ativo[m
+[32m+[m[32m        do {[m
+[32m+[m[32m            this.indiceJogadorAtual = (this.indiceJogadorAtual + 1) % this.participantes.length;[m
+[32m+[m[32m            this.jogadorAtual = this.participantes[this.indiceJogadorAtual];[m
+[32m+[m[32m        } while (!this.jogadorAtual.estaAtivo());[m
+[32m+[m
+         this.ultimoTilePosicionado = null;[m
+         this.faseAtual = 'COMPRAR_TILE';[m
+         this.mensagemStatus = `Vez de ${this.jogadorAtual.obterNome()} comprar uma peça.`;[m
+[36m@@ -238,50 +271,104 @@[m [mexport class GameManager {[m
+     }[m
+ [m
+     private executarTurnoAutomaticoIA(): void {[m
+[32m+[m[32m        const ia = this.jogadorAtual as IA;[m
+         const tile = this.tileManager.comprarTile(this.tabuleiroManager);[m
+         if (!tile) {[m
+[31m-            this.faseAtual = 'FIM_DE_JOGO';[m
+[31m-            this.mensagemStatus = 'Fim de jogo!';[m
+[32m+[m[32m            this.finalizarPartida();[m
+             return;[m
+         }[m
+ [m
+[31m-        const tab = this.tabuleiroManager.obterTabuleiro();[m
+[31m-        let posicionou = false;[m
+[31m-[m
+[31m-        for (let rot = 0; rot < 4 && !posicionou; rot++) {[m
+[31m-            for (let y = 0; y < tab.tamanho && !posicionou; y++) {[m
+[31m-                for (let x = 0; x < tab.tamanho && !posicionou; x++) {[m
+[31m-                    if (this.tabuleiroManager.validarPosicaoTile(tile, x, y)) {[m
+[31m-                        tab.posicionarTile(tile, x, y);[m
+[31m-                        this.ultimoTilePosicionado = tile;[m
+[31m-                        this.tileManager.limparTileAtual();[m
+[31m-                        posicionou = true;[m
+[31m-                    }[m
+[31m-                }[m
+[31m-            }[m
+[31m-            if (!posicionou) tile.rotacionar();[m
+[31m-        }[m
+[32m+[m[32m        // Delegado via GoF Strategy da IA[m
+[32m+[m[32m        const posicaoEscolhida = ia.decidirJogada(tile, this.tabuleiroManager);[m
+ [m
+[31m-        if (posicionou && this.ultimoTilePosicionado && this.jogadorAtual.temMeepleDisponivel()) {[m
+[31m-            const candidatos = this.ultimoTilePosicionado.obterPosicoesValidasMeeple();[m
+[31m-            for (const subId of candidatos) {[m
+[31m-                const terreno = this.ultimoTilePosicionado.obterTipoSubsegmento(subId);[m
+[31m-                if ([m
+[31m-                    (terreno === 'MOSTEIRO' || terreno === 'CIDADE' || terreno === 'ESTRADA') &&[m
+[31m-                    this.tabuleiroManager.validarPosicaoMeeple(this.ultimoTilePosicionado, subId)[m
+[31m-                ) {[m
+[31m-                    const meepleIA = this.jogadorAtual.pegarMeeple();[m
+[32m+[m[32m        if (posicaoEscolhida) {[m
+[32m+[m[32m            this.tabuleiroManager.obterTabuleiro().posicionarTile(tile, posicaoEscolhida.x, posicaoEscolhida.y);[m
+[32m+[m[32m            this.ultimoTilePosicionado = tile;[m
+[32m+[m[32m            this.tileManager.limparTileAtual();[m
+[32m+[m
+[32m+[m[32m            if (ia.temMeepleDisponivel()) {[m
+[32m+[m[32m                const subId = ia.decidirMeeple(tile, this.tabuleiroManager);[m
+[32m+[m[32m                if (subId !== null) {[m
+[32m+[m[32m                    const meepleIA = ia.pegarMeeple();[m
+                     if (meepleIA) {[m
+[31m-                        meepleIA.alocarMeeple(this.ultimoTilePosicionado, subId);[m
+[31m-                        break;[m
+[32m+[m[32m                        meepleIA.alocarMeeple(tile, subId);[m
+                     }[m
+                 }[m
+             }[m
+[32m+[m[32m        } else {[m
+[32m+[m[32m            // Descarte caso a IA não tenha encontrado posição[m
+[32m+[m[32m            this.tileManager.descartarTile(tile);[m
+         }[m
+ [m
+         this.finalizarJogadaEPontuar();[m
+     }[m
+ [m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Verifica as condições de término da partida:[m
+[32m+[m[32m     * 1. Baralho vazio e sem peça em mãos, OU[m
+[32m+[m[32m     * 2. Menos de dois jogadores ativos restantes em partida multijogador.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public verificarFimDePartida(): boolean {[m
+[32m+[m[32m        if (this.partidaFinalizada) return true;[m
+[32m+[m
+[32m+[m[32m        const baralhoEsgotado = this.tileManager.baralhoVazio() && this.tileManager.obterTileAtual() === null;[m
+[32m+[m[32m        const participantesAtivos = this.participantes.filter((p) => p.estaAtivo()).length;[m
+[32m+[m
+[32m+[m[32m        return baralhoEsgotado || (this.participantes.length > 1 && participantesAtivos <= 1);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Finaliza a partida calculando os pontos de features incompletas e determinando os vencedores.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public finalizarPartida(): void {[m
+[32m+[m[32m        if (this.partidaFinalizada) return;[m
+[32m+[m
+[32m+[m[32m        this.partidaFinalizada = true;[m
+[32m+[m[32m        this.faseAtual = 'FIM_DE_JOGO';[m
+[32m+[m
+[32m+[m[32m        // Pontuação final de cidades, estradas, mosteiros incompletos e campos[m
+[32m+[m[32m        this.tabuleiroManager.pontuarFeaturesIncompletas();[m
+[32m+[m
+[32m+[m[32m        const vencedores = this.determinarVencedores();[m
+[32m+[m[32m        const nomesVencedores = vencedores.map((v) => `${v.obterNome()} (${v.obterPontuacao()} pts)`).join(', ');[m
+[32m+[m
+[32m+[m[32m        this.mensagemStatus = `🏆 Fim de Jogo! Vencedor(es): ${nomesVencedores}.`;[m
+[32m+[m[32m        this.notificarObservadores();[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Determina o(s) participante(s) vencedor(es) com base na maior pontuação acumulada.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public determinarVencedores(): Participante[] {[m
+[32m+[m[32m        const candidatos = this.participantes.filter((p) => p.estaAtivo());[m
+[32m+[m[32m        const listaAvaliar = candidatos.length > 0 ? candidatos : this.participantes;[m
+[32m+[m
+[32m+[m[32m        let maiorPontuacao = -1;[m
+[32m+[m[32m        for (const p of listaAvaliar) {[m
+[32m+[m[32m            if (p.obterPontuacao() > maiorPontuacao) {[m
+[32m+[m[32m                maiorPontuacao = p.obterPontuacao();[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        return listaAvaliar.filter((p) => p.obterPontuacao() === maiorPontuacao);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Remove ou marca um participante como desistente e avança a partida.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public removerParticipante(participante: Participante): void {[m
+[32m+[m[32m        participante.marcarComoDesistente();[m
+[32m+[m
+[32m+[m[32m        if (this.jogadorAtual === participante) {[m
+[32m+[m[32m            this.proximoTurno();[m
+[32m+[m[32m        } else if (this.verificarFimDePartida()) {[m
+[32m+[m[32m            this.finalizarPartida();[m
+[32m+[m[32m        } else {[m
+[32m+[m[32m            this.notificarObservadores();[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // --- Getters de estado ---[m
+     public obterJogadorAtual(): Participante { return this.jogadorAtual; }[m
+     public obterParticipantes(): Participante[] { return this.participantes; }[m
+     public obterTabuleiro(): Tabuleiro { return this.tabuleiroManager.obterTabuleiro(); }[m
+[36m@@ -290,4 +377,7 @@[m [mexport class GameManager {[m
+     public obterFaseAtual(): FaseDoTurno { return this.faseAtual; }[m
+     public obterMensagemStatus(): string { return this.mensagemStatus; }[m
+     public obterUltimoTilePosicionado(): Tile | null { return this.ultimoTilePosicionado; }[m
+[32m+[m[32m    public estaFinalizada(): boolean { return this.partidaFinalizada; }[m
+[32m+[m[32m    public obterTileManager(): TileManager { return this.tileManager; }[m
+[32m+[m[32m    public obterTabuleiroManager(): TabuleiroManager { return this.tabuleiroManager; }[m
+ }[m
+[1mdiff --git a/src/models/Participante.ts b/src/models/Participante.ts[m
+[1mindex bdc7db0..2b0ff79 100644[m
+[1m--- a/src/models/Participante.ts[m
+[1m+++ b/src/models/Participante.ts[m
+[36m@@ -1,9 +1,205 @@[m
+ import { Meeple } from './Meeple';[m
+[32m+[m[32mimport { Posicao } from './Enums';[m
+[32m+[m[32mimport type { Tile } from './Tile';[m
+[32m+[m[32mimport { TabuleiroManager } from './TabuleiroManager';[m
+ [m
+[32m+[m[32m// ---------------------------------------------------------------------------[m
+[32m+[m[32m// StatusParticipante (diagrama): ATIVO | DESISTIDO[m
+[32m+[m[32m// ---------------------------------------------------------------------------[m
+[32m+[m[32mexport type StatusParticipante = 'ATIVO' | 'DESISTIDO';[m
+[32m+[m
+[32m+[m[32m// ---------------------------------------------------------------------------[m
+[32m+[m[32m// Padrão GoF Strategy: EstrategiaIA[m
+[32m+[m[32m// ---------------------------------------------------------------------------[m
+[32m+[m[32mexport interface EstrategiaIA {[m
+[32m+[m[32m    readonly nome: string;[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Escolhe onde posicionar o tile. Pode girar o tile (rotacionar) até[m
+[32m+[m[32m     * encontrar a posição ideal conforme a política da estratégia.[m
+[32m+[m[32m     * Retorna null se nenhuma posição servir.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    escolherPosicao(tile: Tile, tabuleiroManager: TabuleiroManager): Posicao | null;[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Decide se vale a pena colocar um meeple após o tile já ter sido posicionado.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    decidirMeeple(tile: Tile, tabuleiroManager: TabuleiroManager): boolean;[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Escolhe em qual subsegmento do tile colocar o meeple.[m
+[32m+[m[32m     * Retorna null se não houver subsegmento adequado.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    escolherSubsegmentoMeeple(tile: Tile, tabuleiroManager: TabuleiroManager): number | null;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m/**[m
+[32m+[m[32m * Estratégia Fácil / Padrão (Primeira Válida):[m
+[32m+[m[32m * - Seleciona a primeira posição válida encontrada no tabuleiro varrendo as coordenadas.[m
+[32m+[m[32m * - Posiciona meeple na primeira oportunidade válida disponível.[m
+[32m+[m[32m */[m
+[32m+[m[32mexport class EstrategiaIAPrimeiraValida implements EstrategiaIA {[m
+[32m+[m[32m    public readonly nome = 'Fácil (Primeira Válida)';[m
+[32m+[m
+[32m+[m[32m    public escolherPosicao(tile: Tile, tabuleiroManager: TabuleiroManager): Posicao | null {[m
+[32m+[m[32m        const tamanho = tabuleiroManager.obterTabuleiro().tamanho;[m
+[32m+[m
+[32m+[m[32m        for (let rot = 0; rot < 4; rot++) {[m
+[32m+[m[32m            for (let y = 0; y < tamanho; y++) {[m
+[32m+[m[32m                for (let x = 0; x < tamanho; x++) {[m
+[32m+[m[32m                    if (tabuleiroManager.validarPosicaoTile(tile, x, y)) {[m
+[32m+[m[32m                        return new Posicao(x, y);[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m            tile.rotacionar();[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return null;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public decidirMeeple(tile: Tile, tabuleiroManager: TabuleiroManager): boolean {[m
+[32m+[m[32m        return this.escolherSubsegmentoMeeple(tile, tabuleiroManager) !== null;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public escolherSubsegmentoMeeple(tile: Tile, tabuleiroManager: TabuleiroManager): number | null {[m
+[32m+[m[32m        for (const subId of tile.obterPosicoesValidasMeeple()) {[m
+[32m+[m[32m            const terreno = tile.obterTipoSubsegmento(subId);[m
+[32m+[m[32m            if ([m
+[32m+[m[32m                (terreno === 'MOSTEIRO' || terreno === 'CIDADE' || terreno === 'ESTRADA') &&[m
+[32m+[m[32m                tabuleiroManager.validarPosicaoMeeple(tile, subId)[m
+[32m+[m[32m            ) {[m
+[32m+[m[32m                return subId;[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return null;[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m/**[m
+[32m+[m[32m * Estratégia Agressiva / Ofensiva:[m
+[32m+[m[32m * - Prioriza posições que conectem ou expandam Cidades e peças com emblema/escudo.[m
+[32m+[m[32m * - Aloca meeples prioritariamente em Cidades (maior valor por peça) e Mosteiros.[m
+[32m+[m[32m */[m
+[32m+[m[32mexport class EstrategiaIAAgressiva implements EstrategiaIA {[m
+[32m+[m[32m    public readonly nome = 'Agressiva (Foco em Cidades e Pontos)';[m
+[32m+[m
+[32m+[m[32m    public escolherPosicao(tile: Tile, tabuleiroManager: TabuleiroManager): Posicao | null {[m
+[32m+[m[32m        const tamanho = tabuleiroManager.obterTabuleiro().tamanho;[m
+[32m+[m[32m        let melhorPosicao: Posicao | null = null;[m
+[32m+[m[32m        let maiorPontuacaoPotencial = -1;[m
+[32m+[m
+[32m+[m[32m        for (let rot = 0; rot < 4; rot++) {[m
+[32m+[m[32m            for (let y = 0; y < tamanho; y++) {[m
+[32m+[m[32m                for (let x = 0; x < tamanho; x++) {[m
+[32m+[m[32m                    if (tabuleiroManager.validarPosicaoTile(tile, x, y)) {[m
+[32m+[m[32m                        // Calcula atratividade: vizinhos com cidade ou escudo têm prioridade[m
+[32m+[m[32m                        const vizinhos = tabuleiroManager.obterTabuleiro().obterTilesAdjacentes(x, y);[m
+[32m+[m[32m                        let peso = vizinhos.length;[m
+[32m+[m[32m                        if (tile.temEscudo) peso += 5;[m
+[32m+[m[32m                        for (const v of vizinhos) {[m
+[32m+[m[32m                            if (v.temEscudo) peso += 3;[m
+[32m+[m[32m                            if (v.obterBordas().includes('CIDADE')) peso += 2;[m
+[32m+[m[32m                        }[m
+[32m+[m
+[32m+[m[32m                        if (peso > maiorPontuacaoPotencial) {[m
+[32m+[m[32m                            maiorPontuacaoPotencial = peso;[m
+[32m+[m[32m                            melhorPosicao = new Posicao(x, y);[m
+[32m+[m[32m                        }[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m            if (melhorPosicao && maiorPontuacaoPotencial >= 5) {[m
+[32m+[m[32m                return melhorPosicao;[m
+[32m+[m[32m            }[m
+[32m+[m[32m            tile.rotacionar();[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        return melhorPosicao;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public decidirMeeple(tile: Tile, tabuleiroManager: TabuleiroManager): boolean {[m
+[32m+[m[32m        return this.escolherSubsegmentoMeeple(tile, tabuleiroManager) !== null;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public escolherSubsegmentoMeeple(tile: Tile, tabuleiroManager: TabuleiroManager): number | null {[m
+[32m+[m[32m        const posicoes = tile.obterPosicoesValidasMeeple();[m
+[32m+[m[32m        // Ordem agressiva: CIDADE primeiro, depois MOSTEIRO, depois ESTRADA[m
+[32m+[m[32m        const ordemPreferencia = ['CIDADE', 'MOSTEIRO', 'ESTRADA'];[m
+[32m+[m
+[32m+[m[32m        for (const tipo of ordemPreferencia) {[m
+[32m+[m[32m            for (const subId of posicoes) {[m
+[32m+[m[32m                if (tile.obterTipoSubsegmento(subId) === tipo && tabuleiroManager.validarPosicaoMeeple(tile, subId)) {[m
+[32m+[m[32m                    return subId;[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return null;[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m/**[m
+[32m+[m[32m * Estratégia Defensiva:[m
+[32m+[m[32m * - Prioriza fechamentos rápidos e seguros (estradas e mosteiros cercados).[m
+[32m+[m[32m * - Conserva meeples caso o participante tenha poucos disponíveis.[m
+[32m+[m[32m */[m
+[32m+[m[32mexport class EstrategiaIADefensiva implements EstrategiaIA {[m
+[32m+[m[32m    public readonly nome = 'Defensiva (Fechamentos Rápidos e Economia)';[m
+[32m+[m
+[32m+[m[32m    public escolherPosicao(tile: Tile, tabuleiroManager: TabuleiroManager): Posicao | null {[m
+[32m+[m[32m        const tamanho = tabuleiroManager.obterTabuleiro().tamanho;[m
+[32m+[m[32m        let melhorPosicao: Posicao | null = null;[m
+[32m+[m[32m        let maxVizinhos = -1;[m
+[32m+[m
+[32m+[m[32m        for (let rot = 0; rot < 4; rot++) {[m
+[32m+[m[32m            for (let y = 0; y < tamanho; y++) {[m
+[32m+[m[32m                for (let x = 0; x < tamanho; x++) {[m
+[32m+[m[32m                    if (tabuleiroManager.validarPosicaoTile(tile, x, y)) {[m
+[32m+[m[32m                        const vizinhos = tabuleiroManager.obterTabuleiro().obterTilesAdjacentes(x, y);[m
+[32m+[m[32m                        // Defensiva prefere áreas mais densas/fechadas[m
+[32m+[m[32m                        if (vizinhos.length > maxVizinhos) {[m
+[32m+[m[32m                            maxVizinhos = vizinhos.length;[m
+[32m+[m[32m                            melhorPosicao = new Posicao(x, y);[m
+[32m+[m[32m                        }[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m            if (melhorPosicao && maxVizinhos >= 3) {[m
+[32m+[m[32m                return melhorPosicao;[m
+[32m+[m[32m            }[m
+[32m+[m[32m            tile.rotacionar();[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        return melhorPosicao;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public decidirMeeple(tile: Tile, tabuleiroManager: TabuleiroManager): boolean {[m
+[32m+[m[32m        return this.escolherSubsegmentoMeeple(tile, tabuleiroManager) !== null;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public escolherSubsegmentoMeeple(tile: Tile, tabuleiroManager: TabuleiroManager): number | null {[m
+[32m+[m[32m        const posicoes = tile.obterPosicoesValidasMeeple();[m
+[32m+[m[32m        // Defensiva prioriza mosteiros (fechamento rápido) e estradas[m
+[32m+[m[32m        const ordemPreferencia = ['MOSTEIRO', 'ESTRADA', 'CIDADE'];[m
+[32m+[m
+[32m+[m[32m        for (const tipo of ordemPreferencia) {[m
+[32m+[m[32m            for (const subId of posicoes) {[m
+[32m+[m[32m                if (tile.obterTipoSubsegmento(subId) === tipo && tabuleiroManager.validarPosicaoMeeple(tile, subId)) {[m
+[32m+[m[32m                    return subId;[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return null;[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m// ---------------------------------------------------------------------------[m
+[32m+[m[32m// Participante (GRASP Information Expert & Creator de seus Meeples)[m
+[32m+[m[32m// ---------------------------------------------------------------------------[m
+ export abstract class Participante {[m
+     private nome: string;[m
+     private cor: string;[m
+     private pontuacao: number = 0;[m
+[32m+[m[32m    private desistente: boolean = false;[m
+     private meeples: Meeple[] = [];[m
+ [m
+     constructor(nome: string, cor: string) {[m
+[36m@@ -12,7 +208,11 @@[m [mexport abstract class Participante {[m
+         this.inicializarMeeples();[m
+     }[m
+ [m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Padrão GRASP Creator: Participante cria e compõe seus próprios 7 objetos Meeple.[m
+[32m+[m[32m     */[m
+     private inicializarMeeples(): void {[m
+[32m+[m[32m        this.meeples = [];[m
+         for (let i = 0; i < 7; i++) {[m
+             this.meeples.push(new Meeple(this));[m
+         }[m
+[36m@@ -35,15 +235,38 @@[m [mexport abstract class Participante {[m
+         return this.meeples.filter((m) => m.estaDisponivel()).length;[m
+     }[m
+ [m
+[31m-[m
+     public adicionarPontos(pontos: number): void {[m
+         this.pontuacao += pontos;[m
+     }[m
+ [m
+[32m+[m[32m    // --- Status (desistência) ------------------------------------------------[m
+[32m+[m
+[32m+[m[32m    public marcarComoDesistente(): void {[m
+[32m+[m[32m        this.desistente = true;[m
+[32m+[m[32m        // Padrão GRASP: Se um participante desiste, desaloca todos os seus meeples em jogo[m
+[32m+[m[32m        for (const meeple of this.meeples) {[m
+[32m+[m[32m            meeple.desalocarMeeple();[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public estaAtivo(): boolean {[m
+[32m+[m[32m        return !this.desistente;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public obterStatus(): StatusParticipante {[m
+[32m+[m[32m        return this.desistente ? 'DESISTIDO' : 'ATIVO';[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // --- Getters ---------------------------------------------------------------[m
+[32m+[m
+     public obterNome(): string {[m
+         return this.nome;[m
+     }[m
+ [m
+[32m+[m[32m    public definirNome(nome: string): void {[m
+[32m+[m[32m        this.nome = nome;[m
+[32m+[m[32m    }[m
+[32m+[m
+     public obterCor(): string {[m
+         return this.cor;[m
+     }[m
+[36m@@ -52,10 +275,16 @@[m [mexport abstract class Participante {[m
+         return this.pontuacao;[m
+     }[m
+ [m
+[32m+[m[32m    public obterMeeples(): Meeple[] {[m
+[32m+[m[32m        return [...this.meeples];[m
+[32m+[m[32m    }[m
+ [m
+     public abstract ehAutomatico(): boolean;[m
+ }[m
+ [m
+[32m+[m[32m// ---------------------------------------------------------------------------[m
+[32m+[m[32m// Jogador Humano[m
+[32m+[m[32m// ---------------------------------------------------------------------------[m
+ export class Jogador extends Participante {[m
+     constructor(nome: string, cor: string) {[m
+         super(nome, cor);[m
+[36m@@ -66,12 +295,44 @@[m [mexport class Jogador extends Participante {[m
+     }[m
+ }[m
+ [m
+[32m+[m[32m// ---------------------------------------------------------------------------[m
+[32m+[m[32m// IA (GoF Strategy: delega tomada de decisão para a EstrategiaIA)[m
+[32m+[m[32m// ---------------------------------------------------------------------------[m
+ export class IA extends Participante {[m
+[31m-    constructor(nome: string, cor: string) {[m
+[32m+[m[32m    private estrategia: EstrategiaIA;[m
+[32m+[m
+[32m+[m[32m    constructor(nome: string, cor: string, estrategia?: EstrategiaIA) {[m
+         super(nome, cor);[m
+[32m+[m[32m        this.estrategia = estrategia ?? new EstrategiaIAPrimeiraValida();[m
+     }[m
+ [m
+     public ehAutomatico(): boolean {[m
+         return true;[m
+     }[m
+[31m-}[m
+\ No newline at end of file[m
+[32m+[m
+[32m+[m[32m    public definirEstrategia(estrategia: EstrategiaIA): void {[m
+[32m+[m[32m        this.estrategia = estrategia;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public obterEstrategia(): EstrategiaIA {[m
+[32m+[m[32m        return this.estrategia;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Padrão Strategy: Executa a decisão de jogada delegando para a estratégia associada.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public decidirJogada(tile: Tile, tabuleiroManager?: TabuleiroManager): Posicao | null {[m
+[32m+[m[32m        const mgr = tabuleiroManager ?? TabuleiroManager.getInstance();[m
+[32m+[m[32m        return this.estrategia.escolherPosicao(tile, mgr);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Padrão Strategy: Executa a decisão de meeple delegando para a estratégia associada.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public decidirMeeple(tile: Tile, tabuleiroManager?: TabuleiroManager): number | null {[m
+[32m+[m[32m        if (!this.temMeepleDisponivel()) return null;[m
+[32m+[m[32m        const mgr = tabuleiroManager ?? TabuleiroManager.getInstance();[m
+[32m+[m[32m        if (!this.estrategia.decidirMeeple(tile, mgr)) return null;[m
+[32m+[m[32m        return this.estrategia.escolherSubsegmentoMeeple(tile, mgr);[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/src/models/TabuleiroManager.ts b/src/models/TabuleiroManager.ts[m
+[1mindex b511bb8..4a4ee09 100644[m
+[1m--- a/src/models/TabuleiroManager.ts[m
+[1m+++ b/src/models/TabuleiroManager.ts[m
+[36m@@ -3,6 +3,7 @@[m [mimport { Tile } from './Tile';[m
+ import type { Meeple } from './Meeple';[m
+ import { PosicaoSubsegmento, type TipoTerreno } from './Enums';[m
+ import type { Participante } from './Participante';[m
+[32m+[m[32mimport { ColocacaoInvalidaException } from './ColocacaoInvalidaException';[m
+ import {[m
+     type IEstrategiaPontuacao,[m
+     PontuacaoCidadeStrategy,[m
+[36m@@ -15,14 +16,18 @@[m [mexport interface ResultadoEstrutura {[m
+     tiles: Tile[];[m
+     meeples: Meeple[];[m
+     fechada: boolean;[m
+[32m+[m[32m    /** Chaves "idTile:borda" de todas as bordas percorridas na estrutura. */[m
+[32m+[m[32m    bordasVisitadas: string[];[m
+ }[m
+ [m
+ export class TabuleiroManager {[m
+[32m+[m[32m    private static instance: TabuleiroManager | null = null;[m
+[32m+[m
+     private tabuleiro: Tabuleiro;[m
+     private estrategiasPontuacao: Record<TipoTerreno, IEstrategiaPontuacao>;[m
+ [m
+[31m-    constructor(tabuleiro: Tabuleiro) {[m
+[31m-        this.tabuleiro = tabuleiro;[m
+[32m+[m[32m    private constructor() {[m
+[32m+[m[32m        this.tabuleiro = new Tabuleiro(11);[m
+ [m
+         this.estrategiasPontuacao = {[m
+             CIDADE: new PontuacaoCidadeStrategy(),[m
+[36m@@ -32,15 +37,45 @@[m [mexport class TabuleiroManager {[m
+         };[m
+     }[m
+ [m
+[32m+[m[32m    public static getInstance(): TabuleiroManager {[m
+[32m+[m[32m        if (!TabuleiroManager.instance) {[m
+[32m+[m[32m            TabuleiroManager.instance = new TabuleiroManager();[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return TabuleiroManager.instance;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Não está no diagrama, mas é necessário por ser Singleton:[m
+[32m+[m[32m     * descarta o tabuleiro atual e cria um novo para a próxima partida.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public reiniciar(): void {[m
+[32m+[m[32m        this.tabuleiro = new Tabuleiro(11);[m
+[32m+[m[32m    }[m
+[32m+[m
+     public obterTabuleiro(): Tabuleiro {[m
+         return this.tabuleiro;[m
+     }[m
+ [m
+[32m+[m[32m    // ---------------------------------------------------------------------[m
+[32m+[m[32m    // Validação de tiles[m
+[32m+[m[32m    // ---------------------------------------------------------------------[m
+[32m+[m
+[32m+[m[32m    public tabuleiroPossuiAlgumTile(): boolean {[m
+[32m+[m[32m        for (let y = 0; y < this.tabuleiro.tamanho; y++) {[m
+[32m+[m[32m            for (let x = 0; x < this.tabuleiro.tamanho; x++) {[m
+[32m+[m[32m                if (!this.tabuleiro.estaVazio(x, y)) {[m
+[32m+[m[32m                    return true;[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return false;[m
+[32m+[m[32m    }[m
+[32m+[m
+     /**[m
+      * Valida se um Tile pode ser colocado na coordenada (x, y).[m
+      * Regras:[m
+      * 1. A célula deve estar vazia.[m
+[31m-     * 2. Deve haver pelo menos uma peça vizinha adjacente.[m
+[32m+[m[32m     * 2. Deve haver pelo menos uma peça vizinha adjacente (exceto a peça inicial no centro).[m
+      * 3. TODAS as bordas que tocam vizinhos existentes devem combinar perfeitamente.[m
+      */[m
+     public validarPosicaoTile(tile: Tile, x: number, y: number): boolean {[m
+[36m@@ -48,6 +83,11 @@[m [mexport class TabuleiroManager {[m
+             return false;[m
+         }[m
+ [m
+[32m+[m[32m        const temPecasNoTabuleiro = this.tabuleiroPossuiAlgumTile();[m
+[32m+[m[32m        if (!temPecasNoTabuleiro) {[m
+[32m+[m[32m            return x === 5 && y === 5;[m
+[32m+[m[32m        }[m
+[32m+[m
+         const vizinhos = this.tabuleiro.obterTilesAdjacentes(x, y);[m
+         if (vizinhos.length === 0) {[m
+             return false;[m
+[36m@@ -56,10 +96,26 @@[m [mexport class TabuleiroManager {[m
+         return this.validarConexaoTerreno(tile, x, y);[m
+     }[m
+ [m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Mesma validação de validarPosicaoTile, mas lançando[m
+[32m+[m[32m     * ColocacaoInvalidaException com o motivo da recusa.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public exigirPosicaoTileValida(tile: Tile, x: number, y: number): void {[m
+[32m+[m[32m        if (!this.tabuleiro.estaVazio(x, y)) {[m
+[32m+[m[32m            throw new ColocacaoInvalidaException('A casa já está ocupada.');[m
+[32m+[m[32m        }[m
+[32m+[m[32m        if (this.tabuleiro.obterTilesAdjacentes(x, y).length === 0) {[m
+[32m+[m[32m            throw new ColocacaoInvalidaException('A peça precisa encostar em outra peça.');[m
+[32m+[m[32m        }[m
+[32m+[m[32m        if (!this.validarConexaoTerreno(tile, x, y)) {[m
+[32m+[m[32m            throw new ColocacaoInvalidaException('As bordas da peça não combinam com os vizinhos.');[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m
+     /**[m
+      * Compara as bordas do tile com os vizinhos ortogonais existentes.[m
+      */[m
+[31m-    public validarConexaoTerreno(tile: Tile, x: number, y: number): boolean {[m
+[32m+[m[32m    private validarConexaoTerreno(tile: Tile, x: number, y: number): boolean {[m
+         // Vizinho Norte (y - 1) toca a borda Norte do tile com sua borda Sul[m
+         const vizinhoNorte = this.tabuleiro.obterTile(x, y - 1);[m
+         if (vizinhoNorte && vizinhoNorte.obterBordaSul() !== tile.obterBordaNorte()) {[m
+[36m@@ -92,6 +148,10 @@[m [mexport class TabuleiroManager {[m
+      * testando todas as casas livres adjacentes nas 4 rotações possíveis.[m
+      */[m
+     public existePosicaoValidaParaTile(tile: Tile): boolean {[m
+[32m+[m[32m        if (!this.tabuleiroPossuiAlgumTile()) {[m
+[32m+[m[32m            return true;[m
+[32m+[m[32m        }[m
+[32m+[m
+         const rotOriginal = tile.obterRotacao();[m
+         const candidatos: { x: number; y: number }[] = [];[m
+ [m
+[36m@@ -128,6 +188,10 @@[m [mexport class TabuleiroManager {[m
+         return encontrou;[m
+     }[m
+ [m
+[32m+[m[32m    // ---------------------------------------------------------------------[m
+[32m+[m[32m    // Validação de meeples[m
+[32m+[m[32m    // ---------------------------------------------------------------------[m
+[32m+[m
+     /**[m
+      * Valida se um Meeple pode ser posicionado no subsegmento indicado do Tile.[m
+      * Regras:[m
+[36m@@ -169,6 +233,47 @@[m [mexport class TabuleiroManager {[m
+         return estrutura.meeples.length === 0;[m
+     }[m
+ [m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Valida a posição do Meeple lançando ColocacaoInvalidaException em caso de violação de regras.[m
+[32m+[m[32m     * Padrão GRASP Creator: TabuleiroManager atua como criador da exceção estrutural.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public exigirPosicaoMeepleValida(tile: Tile, idSubsegmento: number): void {[m
+[32m+[m[32m        if (idSubsegmento < 0 || idSubsegmento > 12) {[m
+[32m+[m[32m            throw new ColocacaoInvalidaException(`Subsegmento inválido: ${idSubsegmento}`);[m
+[32m+[m[32m        }[m
+[32m+[m[32m        if (tile.obterTodosMeeplesNoTile().length > 0) {[m
+[32m+[m[32m            throw new ColocacaoInvalidaException('Esta peça já contém um Meeple alocado.');[m
+[32m+[m[32m        }[m
+[32m+[m[32m        if (!tile.obterPosicao()) {[m
+[32m+[m[32m            throw new ColocacaoInvalidaException('A peça precisa estar posicionada no tabuleiro para receber um Meeple.');[m
+[32m+[m[32m        }[m
+[32m+[m[32m        if (idSubsegmento === PosicaoSubsegmento.CENTRO) {[m
+[32m+[m[32m            if (!tile.temMosteiro()) {[m
+[32m+[m[32m                throw new ColocacaoInvalidaException('Esta peça não possui Mosteiro no centro.');[m
+[32m+[m[32m            }[m
+[32m+[m[32m            if (tile.obterMeeple(PosicaoSubsegmento.CENTRO) !== null) {[m
+[32m+[m[32m                throw new ColocacaoInvalidaException('O Mosteiro já possui um Monge alocado.');[m
+[32m+[m[32m            }[m
+[32m+[m[32m            return;[m
+[32m+[m[32m        }[m
+[32m+[m[32m        const edgeIndex = Tile.subsegmentoParaBorda(idSubsegmento);[m
+[32m+[m[32m        if (edgeIndex === -1) {[m
+[32m+[m[32m            throw new ColocacaoInvalidaException('Subsegmento não corresponde a nenhuma borda válida.');[m
+[32m+[m[32m        }[m
+[32m+[m[32m        const terreno = tile.obterBordas()[edgeIndex];[m
+[32m+[m[32m        if (terreno === 'MOSTEIRO') {[m
+[32m+[m[32m            throw new ColocacaoInvalidaException('Mosteiro não pode ser alocado nesta borda.');[m
+[32m+[m[32m        }[m
+[32m+[m[32m        const estrutura = this.obterEstruturaConectada(tile, edgeIndex, terreno);[m
+[32m+[m[32m        if (estrutura.meeples.length > 0) {[m
+[32m+[m[32m            throw new ColocacaoInvalidaException(`A estrutura de ${terreno} já possui Meeple(s) alocado(s).`);[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // ---------------------------------------------------------------------[m
+[32m+[m[32m    // Estruturas conectadas[m
+[32m+[m[32m    // ---------------------------------------------------------------------[m
+[32m+[m
+     /**[m
+      * Explora a malha de conexões internas e de adjacência do tabuleiro para encontrar[m
+      * todos os tiles da estrutura conectada, todos os meeples alocados e se a estrutura está fechada.[m
+[36m@@ -242,10 +347,15 @@[m [mexport class TabuleiroManager {[m
+         return {[m
+             tiles: Array.from(tilesMap.values()),[m
+             meeples: meeplesList,[m
+[31m-            fechada[m
+[32m+[m[32m            fechada,[m
+[32m+[m[32m            bordasVisitadas: Array.from(visitedEdges)[m
+         };[m
+     }[m
+ [m
+[32m+[m[32m    // ---------------------------------------------------------------------[m
+[32m+[m[32m    // Pontuação durante o jogo[m
+[32m+[m[32m    // ---------------------------------------------------------------------[m
+[32m+[m
+     /**[m
+      * Verifica e pontua fechamentos de Mosteiros, Cidades e Estradas resultantes[m
+      * do último tile posicionado.[m
+[36m@@ -266,24 +376,21 @@[m [mexport class TabuleiroManager {[m
+                 continue;[m
+             }[m
+ [m
+[31m-            const chaveAvaliador = `${tileAtual.id}:${edgeIndex}`;[m
+[31m-            if (estruturasAvaliadas.has(chaveAvaliador)) {[m
+[32m+[m[32m            if (estruturasAvaliadas.has(`${tileAtual.id}:${edgeIndex}`)) {[m
+                 continue;[m
+             }[m
+ [m
+             const estrutura = this.obterEstruturaConectada(tileAtual, edgeIndex, terreno);[m
+ [m
+[31m-            // Marca todas as bordas dos tiles da estrutura para evitar pontuação duplicada[m
+[31m-            for (const t of estrutura.tiles) {[m
+[31m-                for (let e = 0; e < 4; e++) {[m
+[31m-                    estruturasAvaliadas.add(`${t.id}:${e}`);[m
+[31m-                }[m
+[32m+[m[32m            // Marca apenas as bordas desta estrutura (um tile pode ter duas[m
+[32m+[m[32m            // cidades/estradas separadas, e a segunda não pode ser ignorada)[m
+[32m+[m[32m            for (const chave of estrutura.bordasVisitadas) {[m
+[32m+[m[32m                estruturasAvaliadas.add(chave);[m
+             }[m
+ [m
+             if (estrutura.fechada && estrutura.meeples.length > 0) {[m
+[31m-                const estrategia = this.estrategiasPontuacao[terreno];[m
+[31m-                const pontos = estrategia.calcularPontos(estrutura.tiles);[m
+[31m-                this.distribuirPontosEDevolverMeeples(estrutura.meeples, pontos);[m
+[32m+[m[32m                const pontos = this.calcularPontos(estrutura.tiles, terreno);[m
+[32m+[m[32m                this.resolverEmpate(estrutura.meeples, pontos);[m
+             }[m
+         }[m
+     }[m
+[36m@@ -303,8 +410,8 @@[m [mexport class TabuleiroManager {[m
+                     if (monge) {[m
+                         const vizinhos3x3 = this.obterTiles3x3(mx, my);[m
+                         if (vizinhos3x3.length === 9) {[m
+[31m-                            const pontos = this.estrategiasPontuacao['MOSTEIRO'].calcularPontos(vizinhos3x3);[m
+[31m-                            this.distribuirPontosEDevolverMeeples([monge], pontos);[m
+[32m+[m[32m                            const pontos = this.calcularPontos(vizinhos3x3, 'MOSTEIRO');[m
+[32m+[m[32m                            this.resolverEmpate([monge], pontos);[m
+                         }[m
+                     }[m
+                 }[m
+[36m@@ -323,11 +430,30 @@[m [mexport class TabuleiroManager {[m
+         return lista;[m
+     }[m
+ [m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Calcula os pontos de uma estrutura FECHADA usando a estratégia do terreno.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    private calcularPontos(tilesFechados: Tile[], tipo: TipoTerreno): number {[m
+[32m+[m[32m        return this.estrategiasPontuacao[tipo].calcularPontos(tilesFechados);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Pontos de estruturas incompletas (fim de jogo).[m
+[32m+[m[32m     * Cidade: 1 ponto por tile + 1 por escudo. Estrada e mosteiro: 1 ponto por tile[m
+[32m+[m[32m     * (no mosteiro, a lista é o 3x3 existente: o próprio mosteiro + vizinhos).[m
+[32m+[m[32m     */[m
+[32m+[m[32m    private calcularPontosIncompletos(tiles: Tile[], tipo: TipoTerreno): number {[m
+[32m+[m[32m        if (tipo === 'CIDADE') {[m
+[32m+[m[32m            return tiles.reduce((total, t) => total + 1 + (t.temEscudo ? 1 : 0), 0);[m
+[32m+[m[32m        }[m
+[32m+[m[32m        return this.estrategiasPontuacao[tipo].calcularPontos(tiles);[m
+[32m+[m[32m    }[m
+[32m+[m
+     /**[m
+      * Atribui os pontos aos jogadores com maior número de Meeples na estrutura[m
+      * (ou empatados no topo) e devolve todos os meeples para seus respectivos donos.[m
+      */[m
+[31m-    private distribuirPontosEDevolverMeeples(meeplesEnvolvidos: Meeple[], pontosTotais: number): void {[m
+[32m+[m[32m    private resolverEmpate(meeplesEnvolvidos: Meeple[], pontosTotais: number): void {[m
+         if (meeplesEnvolvidos.length === 0) return;[m
+ [m
+         const contagemPorJogador = new Map<Participante, number>();[m
+[36m@@ -347,9 +473,127 @@[m [mexport class TabuleiroManager {[m
+             }[m
+         }[m
+ [m
+[31m-        // Devolução rigorosa de todos os meeples da estrutura concluída[m
+[32m+[m[32m        // Devolução de todos os meeples da estrutura concluída[m
+         for (const meeple of meeplesEnvolvidos) {[m
+             meeple.obterDono().devolverMeeple(meeple);[m
+         }[m
+     }[m
+[31m-}[m
+[32m+[m
+[32m+[m[32m    // ---------------------------------------------------------------------[m
+[32m+[m[32m    // Pontuação de fim de jogo[m
+[32m+[m[32m    // ---------------------------------------------------------------------[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Pontuação final: cidades, estradas e mosteiros incompletos que ainda têm[m
+[32m+[m[32m     * meeples, e todos os campos (fazendeiros). Chamar uma vez, ao fim da partida.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public pontuarFeaturesIncompletas(): void {[m
+[32m+[m[32m        const avaliadas = new Set<string>();[m
+[32m+[m[32m        const grid = this.tabuleiro.obterGrid();[m
+[32m+[m
+[32m+[m[32m        for (const linha of grid) {[m
+[32m+[m[32m            for (const tile of linha) {[m
+[32m+[m[32m                if (!tile) continue;[m
+[32m+[m
+[32m+[m[32m                // Cidades e estradas incompletas[m
+[32m+[m[32m                for (let edge = 0; edge < 4; edge++) {[m
+[32m+[m[32m                    const terreno = tile.obterBordas()[edge];[m
+[32m+[m[32m                    if (terreno !== 'CIDADE' && terreno !== 'ESTRADA') continue;[m
+[32m+[m[32m                    if (avaliadas.has(`${tile.id}:${edge}`)) continue;[m
+[32m+[m
+[32m+[m[32m                    const estrutura = this.obterEstruturaConectada(tile, edge, terreno);[m
+[32m+[m[32m                    for (const chave of estrutura.bordasVisitadas) {[m
+[32m+[m[32m                        avaliadas.add(chave);[m
+[32m+[m[32m                    }[m
+[32m+[m
+[32m+[m[32m                    if (!estrutura.fechada && estrutura.meeples.length > 0) {[m
+[32m+[m[32m                        const pontos = this.calcularPontosIncompletos(estrutura.tiles, terreno);[m
+[32m+[m[32m                        this.resolverEmpate(estrutura.meeples, pontos);[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m
+[32m+[m[32m                // Mosteiro incompleto: 1 ponto pelo mosteiro + 1 por peça ao redor[m
+[32m+[m[32m                const pos = tile.obterPosicao();[m
+[32m+[m[32m                if (pos && tile.temMosteiro()) {[m
+[32m+[m[32m                    const monge = tile.obterMeeple(PosicaoSubsegmento.CENTRO);[m
+[32m+[m[32m                    if (monge) {[m
+[32m+[m[32m                        const tiles3x3 = this.obterTiles3x3(pos.x, pos.y);[m
+[32m+[m[32m                        const pontos = this.calcularPontosIncompletos(tiles3x3, 'MOSTEIRO');[m
+[32m+[m[32m                        this.resolverEmpate([monge], pontos);[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        this.pontuarCampos();[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Pontua os campos que têm fazendeiros (somente no fim do jogo).[m
+[32m+[m[32m     */[m
+[32m+[m[32m    private pontuarCampos(): void {[m
+[32m+[m[32m        const avaliados = new Set<string>();[m
+[32m+[m
+[32m+[m[32m        for (const linha of this.tabuleiro.obterGrid()) {[m
+[32m+[m[32m            for (const tile of linha) {[m
+[32m+[m[32m                const pos = tile?.obterPosicao();[m
+[32m+[m[32m                if (!tile || !pos) continue;[m
+[32m+[m
+[32m+[m[32m                for (let edge = 0; edge < 4; edge++) {[m
+[32m+[m[32m                    if (tile.obterBordas()[edge] !== 'CAMPO') continue;[m
+[32m+[m[32m                    if (avaliados.has(`${tile.id}:${edge}`)) continue;[m
+[32m+[m
+[32m+[m[32m                    const campo = this.obterEstruturaConectada(tile, edge, 'CAMPO');[m
+[32m+[m[32m                    for (const chave of campo.bordasVisitadas) {[m
+[32m+[m[32m                        avaliados.add(chave);[m
+[32m+[m[32m                    }[m
+[32m+[m
+[32m+[m[32m                    if (campo.meeples.length > 0) {[m
+[32m+[m[32m                        const pontos = this.calcularPontuacaoCampo(pos.x, pos.y, edge * 3 + 1);[m
+[32m+[m[32m                        this.resolverEmpate(campo.meeples, pontos);[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Pontos de um campo: 3 por cada cidade FECHADA adjacente ao campo que[m
+[32m+[m[32m     * contém o subsegmento (idSubsegmento) do tile em (x, y).[m
+[32m+[m[32m     *[m
+[32m+[m[32m     * Aproximação: considera toda cidade fechada presente nos tiles do campo,[m
+[32m+[m[32m     * pois o modelo de Tile só guarda terreno por borda (não sabe qual[m
+[32m+[m[32m     * metade de campo encosta em qual cidade).[m
+[32m+[m[32m     */[m
+[32m+[m[32m    private calcularPontuacaoCampo(x: number, y: number, idSubsegmento: number): number {[m
+[32m+[m[32m        const tile = this.tabuleiro.obterTile(x, y);[m
+[32m+[m[32m        if (!tile) return 0;[m
+[32m+[m
+[32m+[m[32m        const edge = Tile.subsegmentoParaBorda(idSubsegmento);[m
+[32m+[m[32m        if (edge === -1 || tile.obterBordas()[edge] !== 'CAMPO') return 0;[m
+[32m+[m
+[32m+[m[32m        const campo = this.obterEstruturaConectada(tile, edge, 'CAMPO');[m
+[32m+[m
+[32m+[m[32m        const cidadesContadas = new Set<string>();[m
+[32m+[m[32m        const cidadesFechadas: Tile[] = [];[m
+[32m+[m
+[32m+[m[32m        for (const t of campo.tiles) {[m
+[32m+[m[32m            for (let e = 0; e < 4; e++) {[m
+[32m+[m[32m                if (t.obterBordas()[e] !== 'CIDADE') continue;[m
+[32m+[m[32m                if (cidadesContadas.has(`${t.id}:${e}`)) continue;[m
+[32m+[m
+[32m+[m[32m                const cidade = this.obterEstruturaConectada(t, e, 'CIDADE');[m
+[32m+[m[32m                for (const chave of cidade.bordasVisitadas) {[m
+[32m+[m[32m                    cidadesContadas.add(chave);[m
+[32m+[m[32m                }[m
+[32m+[m
+[32m+[m[32m                if (cidade.fechada) {[m
+[32m+[m[32m                    cidadesFechadas.push(t);[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        // A estratégia de campo vale 3 pontos por item da lista[m
+[32m+[m[32m        return this.estrategiasPontuacao['CAMPO'].calcularPontos(cidadesFechadas);[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+\ No newline at end of file[m
+[1mdiff --git a/src/models/TileManager.ts b/src/models/TileManager.ts[m
+[1mindex a1403d3..81810cf 100644[m
+[1m--- a/src/models/TileManager.ts[m
+[1m+++ b/src/models/TileManager.ts[m
+[36m@@ -1,18 +1,32 @@[m
+ import { catalogo_pecas } from '../data/tilesData';[m
+ import { Tile } from './Tile';[m
+[31m-import type { TabuleiroManager } from './TabuleiroManager';[m
+[32m+[m[32mimport { TabuleiroManager } from './TabuleiroManager';[m
+ [m
+[32m+[m[32m/**[m
+[32m+[m[32m * TileManager (GRASP Creator & Information Expert)[m
+[32m+[m[32m * Responsável por instanciar as 72 peças do jogo (-inicializarBaralho()),[m
+[32m+[m[32m * controlar o baralho, embaralhar com base em seed, e descartar peças inválidas.[m
+[32m+[m[32m */[m
+ export class TileManager {[m
+[32m+[m[32m    private seed: number;[m
+     private baralho: Tile[] = [];[m
+     private tileAtual: Tile | null = null;[m
+[32m+[m[32m    private descartes: Tile[] = [];[m
+ [m
+[31m-    constructor() {[m
+[32m+[m[32m    constructor(seed?: number) {[m
+[32m+[m[32m        this.seed = seed ?? Math.floor(Math.random() * 1000000);[m
+         this.inicializarBaralho();[m
+         this.embaralhar();[m
+     }[m
+ [m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Instancia todas as peças físicas do jogo com base no catálogo oficial.[m
+[32m+[m[32m     * Padrão GRASP Creator.[m
+[32m+[m[32m     */[m
+     public inicializarBaralho(): void {[m
+         this.baralho = [];[m
+[32m+[m[32m        this.descartes = [];[m
+[32m+[m[32m        this.tileAtual = null;[m
+         let contadorId = 1;[m
+ [m
+         for (const item of catalogo_pecas) {[m
+[36m@@ -23,32 +37,75 @@[m [mexport class TileManager {[m
+         }[m
+     }[m
+ [m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Embaralha as peças contidas no baralho utilizando a seed atual.[m
+[32m+[m[32m     */[m
+     public embaralhar(): void {[m
+[32m+[m[32m        let currentSeed = this.seed;[m
+[32m+[m[32m        // Gerador pseudo-aleatório baseado na seed (LCG simples)[m
+[32m+[m[32m        const pseudoRandom = () => {[m
+[32m+[m[32m            currentSeed = (currentSeed * 9301 + 49297) % 233280;[m
+[32m+[m[32m            return currentSeed / 233280;[m
+[32m+[m[32m        };[m
+[32m+[m
+         for (let i = this.baralho.length - 1; i > 0; i--) {[m
+[31m-            const j = Math.floor(Math.random() * (i + 1));[m
+[32m+[m[32m            const j = Math.floor(pseudoRandom() * (i + 1));[m
+             [this.baralho[i], this.baralho[j]] = [this.baralho[j], this.baralho[i]];[m
+         }[m
+     }[m
+ [m
+     /**[m
+      * Saca a próxima peça válida do baralho.[m
+[31m-     * Se um TabuleiroManager for fornecido, descarta automaticamente qualquer peça[m
+[31m-     * que não tenha encaixe válido em nenhuma posição e rotação no tabuleiro atual.[m
+[32m+[m[32m     * Se um TabuleiroManager for fornecido (ou obtido como Singleton),[m
+[32m+[m[32m     * verifica se a peça pode ser colocada; caso não possa, ela é descartada.[m
+      */[m
+     public comprarTile(tabuleiroManager?: TabuleiroManager): Tile | null {[m
+[32m+[m[32m        const mgr = tabuleiroManager ?? TabuleiroManager.getInstance();[m
+[32m+[m
+         while (this.baralho.length > 0) {[m
+             const candidato = this.baralho.pop()!;[m
+[31m-            if (!tabuleiroManager || tabuleiroManager.existePosicaoValidaParaTile(candidato)) {[m
+[32m+[m[32m            if (!mgr || !this.existeTileParaDescarte(candidato, mgr)) {[m
+                 this.tileAtual = candidato;[m
+                 return this.tileAtual;[m
+             }[m
+             // Peça descartada automaticamente por ser impossível de posicionar[m
+[32m+[m[32m            this.descartarTile(candidato);[m
+         }[m
+ [m
+         this.tileAtual = null;[m
+         return null;[m
+     }[m
+ [m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Verifica se a peça não pode ser encaixada em nenhuma posição válida do tabuleiro.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public existeTileParaDescarte(tile: Tile, tabuleiroManager?: TabuleiroManager): boolean {[m
+[32m+[m[32m        const mgr = tabuleiroManager ?? TabuleiroManager.getInstance();[m
+[32m+[m[32m        if (!mgr) return false;[m
+[32m+[m[32m        // Se NÃO existe posição válida para o tile, ele é elegível para descarte[m
+[32m+[m[32m        return !mgr.existePosicaoValidaParaTile(tile);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Descarta uma peça que não pôde ser posicionada.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public descartarTile(tile: Tile): void {[m
+[32m+[m[32m        this.descartes.push(tile);[m
+[32m+[m[32m        if (this.tileAtual && this.tileAtual.id === tile.id) {[m
+[32m+[m[32m            this.tileAtual = null;[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Informa se o baralho de compras está vazio.[m
+[32m+[m[32m     */[m
+[32m+[m[32m    public baralhoVazio(): boolean {[m
+[32m+[m[32m        return this.baralho.length === 0;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    /**[m
+[32m+[m[32m     * Rotaciona a peça atualmente em mãos do jogador/baralho em 90 graus no sentido horário.[m
+[32m+[m[32m     */[m
+     public rotacionarTileAtualDoBaralho(): void {[m
+         if (this.tileAtual) {[m
+             this.tileAtual.rotacionar();[m
+[36m@@ -59,6 +116,10 @@[m [mexport class TileManager {[m
+         return this.tileAtual;[m
+     }[m
+ [m
+[32m+[m[32m    public definirTileAtual(tile: Tile | null): void {[m
+[32m+[m[32m        this.tileAtual = tile;[m
+[32m+[m[32m    }[m
+[32m+[m
+     public limparTileAtual(): void {[m
+         this.tileAtual = null;[m
+     }[m
+[36m@@ -66,4 +127,16 @@[m [mexport class TileManager {[m
+     public obterQuantidadeRestante(): number {[m
+         return this.baralho.length;[m
+     }[m
+[32m+[m
+[32m+[m[32m    public obterDescartes(): Tile[] {[m
+[32m+[m[32m        return [...this.descartes];[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public obterSeed(): number {[m
+[32m+[m[32m        return this.seed;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public definirSeed(seed: number): void {[m
+[32m+[m[32m        this.seed = seed;[m
+[32m+[m[32m    }[m
+ }[m

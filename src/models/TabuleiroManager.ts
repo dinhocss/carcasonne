@@ -3,6 +3,7 @@ import { Tile } from './Tile';
 import type { Meeple } from './Meeple';
 import { PosicaoSubsegmento, type TipoTerreno } from './Enums';
 import type { Participante } from './Participante';
+import { ColocacaoInvalidaException } from './ColocacaoInvalidaException';
 import {
     type IEstrategiaPontuacao,
     PontuacaoCidadeStrategy,
@@ -15,14 +16,18 @@ export interface ResultadoEstrutura {
     tiles: Tile[];
     meeples: Meeple[];
     fechada: boolean;
+    /** Chaves "idTile:borda" de todas as bordas percorridas na estrutura. */
+    bordasVisitadas: string[];
 }
 
 export class TabuleiroManager {
+    private static instance: TabuleiroManager | null = null;
+
     private tabuleiro: Tabuleiro;
     private estrategiasPontuacao: Record<TipoTerreno, IEstrategiaPontuacao>;
 
-    constructor(tabuleiro: Tabuleiro) {
-        this.tabuleiro = tabuleiro;
+    private constructor() {
+        this.tabuleiro = new Tabuleiro(11);
 
         this.estrategiasPontuacao = {
             CIDADE: new PontuacaoCidadeStrategy(),
@@ -32,20 +37,55 @@ export class TabuleiroManager {
         };
     }
 
+    public static getInstance(): TabuleiroManager {
+        if (!TabuleiroManager.instance) {
+            TabuleiroManager.instance = new TabuleiroManager();
+        }
+        return TabuleiroManager.instance;
+    }
+
+    /**
+     * Não está no diagrama, mas é necessário por ser Singleton:
+     * descarta o tabuleiro atual e cria um novo para a próxima partida.
+     */
+    public reiniciar(): void {
+        this.tabuleiro = new Tabuleiro(11);
+    }
+
     public obterTabuleiro(): Tabuleiro {
         return this.tabuleiro;
+    }
+
+    // ---------------------------------------------------------------------
+    // Validação de tiles
+    // ---------------------------------------------------------------------
+
+    public tabuleiroPossuiAlgumTile(): boolean {
+        for (let y = 0; y < this.tabuleiro.tamanho; y++) {
+            for (let x = 0; x < this.tabuleiro.tamanho; x++) {
+                if (!this.tabuleiro.estaVazio(x, y)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
      * Valida se um Tile pode ser colocado na coordenada (x, y).
      * Regras:
      * 1. A célula deve estar vazia.
-     * 2. Deve haver pelo menos uma peça vizinha adjacente.
+     * 2. Deve haver pelo menos uma peça vizinha adjacente (exceto a peça inicial no centro).
      * 3. TODAS as bordas que tocam vizinhos existentes devem combinar perfeitamente.
      */
     public validarPosicaoTile(tile: Tile, x: number, y: number): boolean {
         if (!this.tabuleiro.estaVazio(x, y)) {
             return false;
+        }
+
+        const temPecasNoTabuleiro = this.tabuleiroPossuiAlgumTile();
+        if (!temPecasNoTabuleiro) {
+            return x === 5 && y === 5;
         }
 
         const vizinhos = this.tabuleiro.obterTilesAdjacentes(x, y);
@@ -57,9 +97,25 @@ export class TabuleiroManager {
     }
 
     /**
+     * Mesma validação de validarPosicaoTile, mas lançando
+     * ColocacaoInvalidaException com o motivo da recusa.
+     */
+    public exigirPosicaoTileValida(tile: Tile, x: number, y: number): void {
+        if (!this.tabuleiro.estaVazio(x, y)) {
+            throw new ColocacaoInvalidaException('A casa já está ocupada.');
+        }
+        if (this.tabuleiro.obterTilesAdjacentes(x, y).length === 0) {
+            throw new ColocacaoInvalidaException('A peça precisa encostar em outra peça.');
+        }
+        if (!this.validarConexaoTerreno(tile, x, y)) {
+            throw new ColocacaoInvalidaException('As bordas da peça não combinam com os vizinhos.');
+        }
+    }
+
+    /**
      * Compara as bordas do tile com os vizinhos ortogonais existentes.
      */
-    public validarConexaoTerreno(tile: Tile, x: number, y: number): boolean {
+    private validarConexaoTerreno(tile: Tile, x: number, y: number): boolean {
         // Vizinho Norte (y - 1) toca a borda Norte do tile com sua borda Sul
         const vizinhoNorte = this.tabuleiro.obterTile(x, y - 1);
         if (vizinhoNorte && vizinhoNorte.obterBordaSul() !== tile.obterBordaNorte()) {
@@ -92,6 +148,10 @@ export class TabuleiroManager {
      * testando todas as casas livres adjacentes nas 4 rotações possíveis.
      */
     public existePosicaoValidaParaTile(tile: Tile): boolean {
+        if (!this.tabuleiroPossuiAlgumTile()) {
+            return true;
+        }
+
         const rotOriginal = tile.obterRotacao();
         const candidatos: { x: number; y: number }[] = [];
 
@@ -127,6 +187,10 @@ export class TabuleiroManager {
 
         return encontrou;
     }
+
+    // ---------------------------------------------------------------------
+    // Validação de meeples
+    // ---------------------------------------------------------------------
 
     /**
      * Valida se um Meeple pode ser posicionado no subsegmento indicado do Tile.
@@ -168,6 +232,47 @@ export class TabuleiroManager {
         const estrutura = this.obterEstruturaConectada(tile, edgeIndex, terreno);
         return estrutura.meeples.length === 0;
     }
+
+    /**
+     * Valida a posição do Meeple lançando ColocacaoInvalidaException em caso de violação de regras.
+     * Padrão GRASP Creator: TabuleiroManager atua como criador da exceção estrutural.
+     */
+    public exigirPosicaoMeepleValida(tile: Tile, idSubsegmento: number): void {
+        if (idSubsegmento < 0 || idSubsegmento > 12) {
+            throw new ColocacaoInvalidaException(`Subsegmento inválido: ${idSubsegmento}`);
+        }
+        if (tile.obterTodosMeeplesNoTile().length > 0) {
+            throw new ColocacaoInvalidaException('Esta peça já contém um Meeple alocado.');
+        }
+        if (!tile.obterPosicao()) {
+            throw new ColocacaoInvalidaException('A peça precisa estar posicionada no tabuleiro para receber um Meeple.');
+        }
+        if (idSubsegmento === PosicaoSubsegmento.CENTRO) {
+            if (!tile.temMosteiro()) {
+                throw new ColocacaoInvalidaException('Esta peça não possui Mosteiro no centro.');
+            }
+            if (tile.obterMeeple(PosicaoSubsegmento.CENTRO) !== null) {
+                throw new ColocacaoInvalidaException('O Mosteiro já possui um Monge alocado.');
+            }
+            return;
+        }
+        const edgeIndex = Tile.subsegmentoParaBorda(idSubsegmento);
+        if (edgeIndex === -1) {
+            throw new ColocacaoInvalidaException('Subsegmento não corresponde a nenhuma borda válida.');
+        }
+        const terreno = tile.obterBordas()[edgeIndex];
+        if (terreno === 'MOSTEIRO') {
+            throw new ColocacaoInvalidaException('Mosteiro não pode ser alocado nesta borda.');
+        }
+        const estrutura = this.obterEstruturaConectada(tile, edgeIndex, terreno);
+        if (estrutura.meeples.length > 0) {
+            throw new ColocacaoInvalidaException(`A estrutura de ${terreno} já possui Meeple(s) alocado(s).`);
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Estruturas conectadas
+    // ---------------------------------------------------------------------
 
     /**
      * Explora a malha de conexões internas e de adjacência do tabuleiro para encontrar
@@ -242,9 +347,14 @@ export class TabuleiroManager {
         return {
             tiles: Array.from(tilesMap.values()),
             meeples: meeplesList,
-            fechada
+            fechada,
+            bordasVisitadas: Array.from(visitedEdges)
         };
     }
+
+    // ---------------------------------------------------------------------
+    // Pontuação durante o jogo
+    // ---------------------------------------------------------------------
 
     /**
      * Verifica e pontua fechamentos de Mosteiros, Cidades e Estradas resultantes
@@ -266,24 +376,21 @@ export class TabuleiroManager {
                 continue;
             }
 
-            const chaveAvaliador = `${tileAtual.id}:${edgeIndex}`;
-            if (estruturasAvaliadas.has(chaveAvaliador)) {
+            if (estruturasAvaliadas.has(`${tileAtual.id}:${edgeIndex}`)) {
                 continue;
             }
 
             const estrutura = this.obterEstruturaConectada(tileAtual, edgeIndex, terreno);
 
-            // Marca todas as bordas dos tiles da estrutura para evitar pontuação duplicada
-            for (const t of estrutura.tiles) {
-                for (let e = 0; e < 4; e++) {
-                    estruturasAvaliadas.add(`${t.id}:${e}`);
-                }
+            // Marca apenas as bordas desta estrutura (um tile pode ter duas
+            // cidades/estradas separadas, e a segunda não pode ser ignorada)
+            for (const chave of estrutura.bordasVisitadas) {
+                estruturasAvaliadas.add(chave);
             }
 
             if (estrutura.fechada && estrutura.meeples.length > 0) {
-                const estrategia = this.estrategiasPontuacao[terreno];
-                const pontos = estrategia.calcularPontos(estrutura.tiles);
-                this.distribuirPontosEDevolverMeeples(estrutura.meeples, pontos);
+                const pontos = this.calcularPontos(estrutura.tiles, terreno);
+                this.resolverEmpate(estrutura.meeples, pontos);
             }
         }
     }
@@ -303,8 +410,8 @@ export class TabuleiroManager {
                     if (monge) {
                         const vizinhos3x3 = this.obterTiles3x3(mx, my);
                         if (vizinhos3x3.length === 9) {
-                            const pontos = this.estrategiasPontuacao['MOSTEIRO'].calcularPontos(vizinhos3x3);
-                            this.distribuirPontosEDevolverMeeples([monge], pontos);
+                            const pontos = this.calcularPontos(vizinhos3x3, 'MOSTEIRO');
+                            this.resolverEmpate([monge], pontos);
                         }
                     }
                 }
@@ -324,10 +431,29 @@ export class TabuleiroManager {
     }
 
     /**
+     * Calcula os pontos de uma estrutura FECHADA usando a estratégia do terreno.
+     */
+    private calcularPontos(tilesFechados: Tile[], tipo: TipoTerreno): number {
+        return this.estrategiasPontuacao[tipo].calcularPontos(tilesFechados);
+    }
+
+    /**
+     * Pontos de estruturas incompletas (fim de jogo).
+     * Cidade: 1 ponto por tile + 1 por escudo. Estrada e mosteiro: 1 ponto por tile
+     * (no mosteiro, a lista é o 3x3 existente: o próprio mosteiro + vizinhos).
+     */
+    private calcularPontosIncompletos(tiles: Tile[], tipo: TipoTerreno): number {
+        if (tipo === 'CIDADE') {
+            return tiles.reduce((total, t) => total + 1 + (t.temEscudo ? 1 : 0), 0);
+        }
+        return this.estrategiasPontuacao[tipo].calcularPontos(tiles);
+    }
+
+    /**
      * Atribui os pontos aos jogadores com maior número de Meeples na estrutura
      * (ou empatados no topo) e devolve todos os meeples para seus respectivos donos.
      */
-    private distribuirPontosEDevolverMeeples(meeplesEnvolvidos: Meeple[], pontosTotais: number): void {
+    private resolverEmpate(meeplesEnvolvidos: Meeple[], pontosTotais: number): void {
         if (meeplesEnvolvidos.length === 0) return;
 
         const contagemPorJogador = new Map<Participante, number>();
@@ -347,9 +473,127 @@ export class TabuleiroManager {
             }
         }
 
-        // Devolução rigorosa de todos os meeples da estrutura concluída
+        // Devolução de todos os meeples da estrutura concluída
         for (const meeple of meeplesEnvolvidos) {
             meeple.obterDono().devolverMeeple(meeple);
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // Pontuação de fim de jogo
+    // ---------------------------------------------------------------------
+
+    /**
+     * Pontuação final: cidades, estradas e mosteiros incompletos que ainda têm
+     * meeples, e todos os campos (fazendeiros). Chamar uma vez, ao fim da partida.
+     */
+    public pontuarFeaturesIncompletas(): void {
+        const avaliadas = new Set<string>();
+        const grid = this.tabuleiro.obterGrid();
+
+        for (const linha of grid) {
+            for (const tile of linha) {
+                if (!tile) continue;
+
+                // Cidades e estradas incompletas
+                for (let edge = 0; edge < 4; edge++) {
+                    const terreno = tile.obterBordas()[edge];
+                    if (terreno !== 'CIDADE' && terreno !== 'ESTRADA') continue;
+                    if (avaliadas.has(`${tile.id}:${edge}`)) continue;
+
+                    const estrutura = this.obterEstruturaConectada(tile, edge, terreno);
+                    for (const chave of estrutura.bordasVisitadas) {
+                        avaliadas.add(chave);
+                    }
+
+                    if (!estrutura.fechada && estrutura.meeples.length > 0) {
+                        const pontos = this.calcularPontosIncompletos(estrutura.tiles, terreno);
+                        this.resolverEmpate(estrutura.meeples, pontos);
+                    }
+                }
+
+                // Mosteiro incompleto: 1 ponto pelo mosteiro + 1 por peça ao redor
+                const pos = tile.obterPosicao();
+                if (pos && tile.temMosteiro()) {
+                    const monge = tile.obterMeeple(PosicaoSubsegmento.CENTRO);
+                    if (monge) {
+                        const tiles3x3 = this.obterTiles3x3(pos.x, pos.y);
+                        const pontos = this.calcularPontosIncompletos(tiles3x3, 'MOSTEIRO');
+                        this.resolverEmpate([monge], pontos);
+                    }
+                }
+            }
+        }
+
+        this.pontuarCampos();
+    }
+
+    /**
+     * Pontua os campos que têm fazendeiros (somente no fim do jogo).
+     */
+    private pontuarCampos(): void {
+        const avaliados = new Set<string>();
+
+        for (const linha of this.tabuleiro.obterGrid()) {
+            for (const tile of linha) {
+                const pos = tile?.obterPosicao();
+                if (!tile || !pos) continue;
+
+                for (let edge = 0; edge < 4; edge++) {
+                    if (tile.obterBordas()[edge] !== 'CAMPO') continue;
+                    if (avaliados.has(`${tile.id}:${edge}`)) continue;
+
+                    const campo = this.obterEstruturaConectada(tile, edge, 'CAMPO');
+                    for (const chave of campo.bordasVisitadas) {
+                        avaliados.add(chave);
+                    }
+
+                    if (campo.meeples.length > 0) {
+                        const pontos = this.calcularPontuacaoCampo(pos.x, pos.y, edge * 3 + 1);
+                        this.resolverEmpate(campo.meeples, pontos);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Pontos de um campo: 3 por cada cidade FECHADA adjacente ao campo que
+     * contém o subsegmento (idSubsegmento) do tile em (x, y).
+     *
+     * Aproximação: considera toda cidade fechada presente nos tiles do campo,
+     * pois o modelo de Tile só guarda terreno por borda (não sabe qual
+     * metade de campo encosta em qual cidade).
+     */
+    private calcularPontuacaoCampo(x: number, y: number, idSubsegmento: number): number {
+        const tile = this.tabuleiro.obterTile(x, y);
+        if (!tile) return 0;
+
+        const edge = Tile.subsegmentoParaBorda(idSubsegmento);
+        if (edge === -1 || tile.obterBordas()[edge] !== 'CAMPO') return 0;
+
+        const campo = this.obterEstruturaConectada(tile, edge, 'CAMPO');
+
+        const cidadesContadas = new Set<string>();
+        const cidadesFechadas: Tile[] = [];
+
+        for (const t of campo.tiles) {
+            for (let e = 0; e < 4; e++) {
+                if (t.obterBordas()[e] !== 'CIDADE') continue;
+                if (cidadesContadas.has(`${t.id}:${e}`)) continue;
+
+                const cidade = this.obterEstruturaConectada(t, e, 'CIDADE');
+                for (const chave of cidade.bordasVisitadas) {
+                    cidadesContadas.add(chave);
+                }
+
+                if (cidade.fechada) {
+                    cidadesFechadas.push(t);
+                }
+            }
+        }
+
+        // A estratégia de campo vale 3 pontos por item da lista
+        return this.estrategiasPontuacao['CAMPO'].calcularPontos(cidadesFechadas);
     }
 }
