@@ -18,7 +18,12 @@ export interface ResultadoEstrutura {
     fechada: boolean;
     /** Chaves "idTile:borda" de todas as bordas percorridas na estrutura. */
     bordasVisitadas: string[];
+    /** Em campos, as bordas de cidade que encostam na região percorrida. */
+    cidadesAdjacentes?: { tile: Tile; borda: number }[];
 }
+
+// Metade de borda do vizinho que encosta em cada metade de borda da peça
+const METADE_OPOSTA = [5, 4, 7, 6, 1, 0, 3, 2];
 
 export class TabuleiroManager {
     private static instance: TabuleiroManager | null = null;
@@ -283,6 +288,10 @@ export class TabuleiroManager {
         startEdge: number,
         terreno: TipoTerreno
     ): ResultadoEstrutura {
+        if (terreno === 'CAMPO') {
+            return this.obterCampoConectado(startTile, startEdge);
+        }
+
         const queue: { tile: Tile; edgeIndex: number }[] = [{ tile: startTile, edgeIndex: startEdge }];
         const visitedEdges = new Set<string>();
         const tilesMap = new Map<string, Tile>();
@@ -349,6 +358,77 @@ export class TabuleiroManager {
             meeples: meeplesList,
             fechada,
             bordasVisitadas: Array.from(visitedEdges)
+        };
+    }
+
+    /**
+     * Percorre a região de campo que contém a borda informada. Estradas dividem o
+     * campo, mas as duas metades da borda de estrada continuam sendo campo.
+     */
+    private obterCampoConectado(startTile: Tile, startEdge: number): ResultadoEstrutura {
+        const regiaoDoPonto = (tile: Tile, ponto: number) =>
+            tile.obterRegioesCampo().findIndex((r) => r.pontos.includes(ponto));
+
+        const regiaoInicial = regiaoDoPonto(startTile, startEdge * 2);
+        const fila: { tile: Tile; regiao: number }[] = regiaoInicial === -1 ? [] : [{ tile: startTile, regiao: regiaoInicial }];
+        const visitadas = new Set<string>();
+        const tilesMap = new Map<string, Tile>();
+        const meeples: Meeple[] = [];
+        const bordasVisitadas = new Set<string>();
+        const cidadesAdjacentes: { tile: Tile; borda: number }[] = [];
+        let fechada = true;
+
+        while (fila.length > 0) {
+            const { tile, regiao } = fila.shift()!;
+            const chave = `${tile.id}:r${regiao}`;
+            if (visitadas.has(chave)) continue;
+            visitadas.add(chave);
+            tilesMap.set(tile.id, tile);
+
+            const dados = tile.obterRegioesCampo()[regiao];
+            for (const borda of dados.cidades) {
+                cidadesAdjacentes.push({ tile, borda });
+            }
+
+            for (let borda = 0; borda < 4; borda++) {
+                if (tile.obterBordas()[borda] === 'CAMPO' && dados.pontos.includes(borda * 2)) {
+                    bordasVisitadas.add(`${tile.id}:${borda}`);
+                    for (let s = 0; s < 3; s++) {
+                        const meeple = tile.obterMeeple(borda * 3 + s);
+                        if (meeple && !meeples.includes(meeple)) {
+                            meeples.push(meeple);
+                        }
+                    }
+                }
+            }
+
+            const pos = tile.obterPosicao();
+            if (!pos) continue;
+
+            for (const ponto of dados.pontos) {
+                const borda = Math.floor(ponto / 2);
+                const dx = borda === 1 ? 1 : borda === 3 ? -1 : 0;
+                const dy = borda === 0 ? -1 : borda === 2 ? 1 : 0;
+                const vizinho = this.tabuleiro.obterTile(pos.x + dx, pos.y + dy);
+
+                if (!vizinho) {
+                    fechada = false;
+                    continue;
+                }
+
+                const regiaoVizinha = regiaoDoPonto(vizinho, METADE_OPOSTA[ponto]);
+                if (regiaoVizinha !== -1) {
+                    fila.push({ tile: vizinho, regiao: regiaoVizinha });
+                }
+            }
+        }
+
+        return {
+            tiles: Array.from(tilesMap.values()),
+            meeples,
+            fechada,
+            bordasVisitadas: Array.from(bordasVisitadas),
+            cidadesAdjacentes
         };
     }
 
@@ -560,10 +640,6 @@ export class TabuleiroManager {
     /**
      * Pontos de um campo: 3 por cada cidade FECHADA adjacente ao campo que
      * contém o subsegmento (idSubsegmento) do tile em (x, y).
-     *
-     * Aproximação: considera toda cidade fechada presente nos tiles do campo,
-     * pois o modelo de Tile só guarda terreno por borda (não sabe qual
-     * metade de campo encosta em qual cidade).
      */
     private calcularPontuacaoCampo(x: number, y: number, idSubsegmento: number): number {
         const tile = this.tabuleiro.obterTile(x, y);
@@ -577,19 +653,16 @@ export class TabuleiroManager {
         const cidadesContadas = new Set<string>();
         const cidadesFechadas: Tile[] = [];
 
-        for (const t of campo.tiles) {
-            for (let e = 0; e < 4; e++) {
-                if (t.obterBordas()[e] !== 'CIDADE') continue;
-                if (cidadesContadas.has(`${t.id}:${e}`)) continue;
+        for (const { tile: t, borda } of campo.cidadesAdjacentes ?? []) {
+            if (cidadesContadas.has(`${t.id}:${borda}`)) continue;
 
-                const cidade = this.obterEstruturaConectada(t, e, 'CIDADE');
-                for (const chave of cidade.bordasVisitadas) {
-                    cidadesContadas.add(chave);
-                }
+            const cidade = this.obterEstruturaConectada(t, borda, 'CIDADE');
+            for (const chave of cidade.bordasVisitadas) {
+                cidadesContadas.add(chave);
+            }
 
-                if (cidade.fechada) {
-                    cidadesFechadas.push(t);
-                }
+            if (cidade.fechada) {
+                cidadesFechadas.push(t);
             }
         }
 

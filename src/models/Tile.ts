@@ -8,6 +8,16 @@ export interface DadosModeloTile {
     temEscudo: boolean;
 }
 
+/**
+ * Região de campo de uma peça. Cada borda tem duas metades, numeradas no sentido
+ * horário: Norte 0-1, Leste 2-3, Sul 4-5 e Oeste 6-7.
+ * "cidades" guarda as bordas de cidade que encostam nessa região.
+ */
+export interface RegiaoCampo {
+    pontos: number[];
+    cidades: number[];
+}
+
 export class Tile {
     public readonly id: string;
     public readonly tipo: string;
@@ -47,6 +57,79 @@ export class Tile {
         'ESTRADA_RETA': [[0, 2]],
         'MOSTEIRO_ESTRADA': [[0]],
         'MOSTEIRO_ISOLADO': []
+    };
+
+    private static readonly CAMPOS_BASE: Record<string, RegiaoCampo[]> = {
+        'CIDADE_1_LADO': [{ pontos: [2, 3, 4, 5, 6, 7], cidades: [0] }],
+        'CIDADE_1_LADO_CRUZAMENTO_3_ESTRADAS': [
+            { pontos: [2, 7], cidades: [0] },
+            { pontos: [3, 4], cidades: [] },
+            { pontos: [5, 6], cidades: [] }
+        ],
+        'CIDADE_1_LADO_ESTRADA_CURVA_DIREITA': [
+            { pontos: [3, 4], cidades: [] },
+            { pontos: [2, 5, 6, 7], cidades: [0] }
+        ],
+        'CIDADE_1_LADO_ESTRADA_CURVA_ESQUERDA': [
+            { pontos: [5, 6], cidades: [] },
+            { pontos: [2, 3, 4, 7], cidades: [0] }
+        ],
+        'CIDADE_1_LADO_ESTRADA_RETA': [
+            { pontos: [2, 7], cidades: [0] },
+            { pontos: [3, 4, 5, 6], cidades: [] }
+        ],
+        'CIDADE_2_LADOS': [{ pontos: [4, 5, 6, 7], cidades: [0] }],
+        'CIDADE_2_LADOS_EMBLEMA': [{ pontos: [4, 5, 6, 7], cidades: [0] }],
+        'CIDADE_2_LADOS_ESTRADA_CURVA_ESQUERDA': [
+            { pontos: [5, 6], cidades: [] },
+            { pontos: [4, 7], cidades: [0] }
+        ],
+        'CIDADE_2_LADOS_ESTRADA_CURVA_ESQUERDA_EMBLEMA': [
+            { pontos: [5, 6], cidades: [] },
+            { pontos: [4, 7], cidades: [0] }
+        ],
+        'CIDADE_3_LADOS': [{ pontos: [6, 7], cidades: [0] }],
+        'CIDADE_3_LADOS_EMBLEMA': [{ pontos: [6, 7], cidades: [0] }],
+        'CIDADE_3_LADOS_ESTRADA': [
+            { pontos: [6], cidades: [0] },
+            { pontos: [7], cidades: [0] }
+        ],
+        'CIDADE_3_LADOS_ESTRADA_EMBLEMA': [
+            { pontos: [6], cidades: [0] },
+            { pontos: [7], cidades: [0] }
+        ],
+        'CIDADE_4_LADOS_EMBLEMA': [],
+        'CIDADE_CANTOS_ADJACENTES': [{ pontos: [4, 5, 6, 7], cidades: [0, 1] }],
+        'CIDADE_CANTOS_PARALELOS': [{ pontos: [2, 3, 6, 7], cidades: [0, 2] }],
+        'CIDADE_PONTE': [
+            { pontos: [2, 3], cidades: [0] },
+            { pontos: [6, 7], cidades: [0] }
+        ],
+        'CIDADE_PONTE_EMBLEMA': [
+            { pontos: [2, 3], cidades: [0] },
+            { pontos: [6, 7], cidades: [0] }
+        ],
+        'CRUZAMENTO_3_ESTRADAS': [
+            { pontos: [1, 2], cidades: [] },
+            { pontos: [3, 4], cidades: [] },
+            { pontos: [5, 6, 7, 0], cidades: [] }
+        ],
+        'CRUZAMENTO_4_ESTRADAS': [
+            { pontos: [1, 2], cidades: [] },
+            { pontos: [3, 4], cidades: [] },
+            { pontos: [5, 6], cidades: [] },
+            { pontos: [7, 0], cidades: [] }
+        ],
+        'ESTRADA_CURVA': [
+            { pontos: [1, 2], cidades: [] },
+            { pontos: [3, 4, 5, 6, 7, 0], cidades: [] }
+        ],
+        'ESTRADA_RETA': [
+            { pontos: [1, 2, 3, 4], cidades: [] },
+            { pontos: [5, 6, 7, 0], cidades: [] }
+        ],
+        'MOSTEIRO_ESTRADA': [{ pontos: [0, 1, 2, 3, 4, 5, 6, 7], cidades: [] }],
+        'MOSTEIRO_ISOLADO': [{ pontos: [0, 1, 2, 3, 4, 5, 6, 7], cidades: [] }]
     };
 
     constructor(id: string, dados: DadosModeloTile) {
@@ -149,6 +232,17 @@ export class Tile {
         }
 
         return [bordaIndex];
+    }
+
+    /**
+     * Retorna as regiões de campo na orientação atual da peça.
+     */
+    public obterRegioesCampo(): RegiaoCampo[] {
+        const k = Math.floor(this.rotacao / 90) % 4;
+        return (Tile.CAMPOS_BASE[this.tipo] || []).map((regiao) => ({
+            pontos: regiao.pontos.map((p) => (p + k * 2) % 8),
+            cidades: regiao.cidades.map((e) => (e + k) % 4)
+        }));
     }
 
     public posicionarMeeple(meeple: Meeple, idSubsegmento: number): void {

@@ -1,4 +1,4 @@
-import { Participante, Jogador, IA } from './Participante';
+import { Participante, Jogador, IA, type EstrategiaIA } from './Participante';
 import { TileManager } from './TileManager';
 import { TabuleiroManager } from './TabuleiroManager';
 import { Tabuleiro } from './Tabuleiro';
@@ -29,6 +29,7 @@ export class GameManager {
     private jogadorAtual: Participante;
     private indiceJogadorAtual: number = 0;
     private partidaFinalizada: boolean = false;
+    private partidaSomenteIA: boolean = false;
 
     private tileManager: TileManager;
     private tabuleiroManager: TabuleiroManager;
@@ -84,6 +85,7 @@ export class GameManager {
         this.tabuleiroManager.reiniciar();
         this.tileManager = new TileManager();
         this.partidaFinalizada = false;
+        this.partidaSomenteIA = false;
 
         const nome1 = nomesJogadores && nomesJogadores[0] ? nomesJogadores[0] : 'Jogador 1';
         const nome2 = nomesJogadores && nomesJogadores[1] ? nomesJogadores[1] : (comIA ? 'Bot Carcassonne (IA)' : 'Jogador 2');
@@ -106,14 +108,42 @@ export class GameManager {
         this.ultimoTilePosicionado = null;
 
         // Peça inicial posicionada no centro do tabuleiro (5, 5)
-        const pecaInicial = this.tileManager.comprarTile(this.tabuleiroManager);
+        const pecaInicial = this.tileManager.retirarPecaInicial();
         if (pecaInicial) {
             this.tabuleiroManager.obterTabuleiro().posicionarTile(pecaInicial, 5, 5);
-            this.tileManager.limparTileAtual();
         }
 
         this.faseAtual = 'COMPRAR_TILE';
         this.mensagemStatus = `Partida iniciada! Vez de ${this.jogadorAtual.obterNome()} comprar uma peça.`;
+        this.notificarObservadores();
+    }
+
+    /**
+     * Inicia uma partida entre duas IAs. Os turnos são executados um a um por
+     * executarTurnoIA(), para que a interface consiga mostrar cada jogada.
+     */
+    public iniciarPartidaIAContraIA(
+        nomes: [string, string],
+        estrategias: [EstrategiaIA, EstrategiaIA]
+    ): void {
+        this.iniciarPartida(true, nomes);
+
+        this.participantes = [
+            new IA(nomes[0], '#4CAF50', estrategias[0]),
+            new IA(nomes[1], '#FF9800', estrategias[1])
+        ];
+        this.jogadorAtual = this.participantes[0];
+        this.partidaSomenteIA = true;
+        this.notificarObservadores();
+    }
+
+    /**
+     * Executa o turno da IA atual em uma partida entre IAs.
+     */
+    public executarTurnoIA(): void {
+        if (!this.partidaSomenteIA || this.partidaFinalizada || this.faseAtual !== 'COMPRAR_TILE') return;
+
+        this.executarTurnoAutomaticoIA();
         this.notificarObservadores();
     }
 
@@ -263,7 +293,7 @@ export class GameManager {
         this.faseAtual = 'COMPRAR_TILE';
         this.mensagemStatus = `Vez de ${this.jogadorAtual.obterNome()} comprar uma peça.`;
 
-        if (this.jogadorAtual.ehAutomatico()) {
+        if (this.jogadorAtual.ehAutomatico() && !this.partidaSomenteIA) {
             this.executarTurnoAutomaticoIA();
         }
 
@@ -281,7 +311,8 @@ export class GameManager {
         // Delegado via GoF Strategy da IA
         const posicaoEscolhida = ia.decidirJogada(tile, this.tabuleiroManager);
 
-        if (posicaoEscolhida) {
+        // A jogada da IA passa pela mesma validação de um jogador humano
+        if (posicaoEscolhida && this.tabuleiroManager.validarPosicaoTile(tile, posicaoEscolhida.x, posicaoEscolhida.y)) {
             this.tabuleiroManager.obterTabuleiro().posicionarTile(tile, posicaoEscolhida.x, posicaoEscolhida.y);
             this.ultimoTilePosicionado = tile;
             this.tileManager.limparTileAtual();
@@ -360,6 +391,11 @@ export class GameManager {
         participante.marcarComoDesistente();
 
         if (this.jogadorAtual === participante) {
+            // A peça em mãos do desistente sai do jogo como descarte
+            const tileEmMaos = this.tileManager.obterTileAtual();
+            if (tileEmMaos) {
+                this.tileManager.descartarTile(tileEmMaos);
+            }
             this.proximoTurno();
         } else if (this.verificarFimDePartida()) {
             this.finalizarPartida();
@@ -378,6 +414,7 @@ export class GameManager {
     public obterMensagemStatus(): string { return this.mensagemStatus; }
     public obterUltimoTilePosicionado(): Tile | null { return this.ultimoTilePosicionado; }
     public estaFinalizada(): boolean { return this.partidaFinalizada; }
+    public ehPartidaSomenteIA(): boolean { return this.partidaSomenteIA; }
     public obterTileManager(): TileManager { return this.tileManager; }
     public obterTabuleiroManager(): TabuleiroManager { return this.tabuleiroManager; }
 }

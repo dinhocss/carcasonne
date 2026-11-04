@@ -49,7 +49,7 @@ export const catalogo_pecas: Modelo[] = [
             bordas:['CIDADE','ESTRADA','CAMPO','ESTRADA'],
             temEscudo:false
         },
-        quantidade:3
+        quantidade:4
     },
     {
         modelo:{
@@ -103,7 +103,7 @@ export const catalogo_pecas: Modelo[] = [
             bordas:['CIDADE','CIDADE','CIDADE','CAMPO'],
             temEscudo:true
         },
-        quantidade:2
+        quantidade:1
     },
     {
         modelo:{
@@ -139,7 +139,7 @@ export const catalogo_pecas: Modelo[] = [
             bordas:['CIDADE','CIDADE','CAMPO','CAMPO'],
             temEscudo:false
         },
-        quantidade:3
+        quantidade:2
     },
     {
         modelo:{
@@ -148,7 +148,7 @@ export const catalogo_pecas: Modelo[] = [
             bordas:['CIDADE','CAMPO','CIDADE','CAMPO'],
             temEscudo:false
         },
-        quantidade:2
+        quantidade:3
     },
     {
         modelo:{

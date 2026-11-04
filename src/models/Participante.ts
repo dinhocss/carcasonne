@@ -86,6 +86,7 @@ export class EstrategiaIAAgressiva implements EstrategiaIA {
     public escolherPosicao(tile: Tile, tabuleiroManager: TabuleiroManager): Posicao | null {
         const tamanho = tabuleiroManager.obterTabuleiro().tamanho;
         let melhorPosicao: Posicao | null = null;
+        let melhorRotacao = 0;
         let maiorPontuacaoPotencial = -1;
 
         for (let rot = 0; rot < 4; rot++) {
@@ -104,13 +105,19 @@ export class EstrategiaIAAgressiva implements EstrategiaIA {
                         if (peso > maiorPontuacaoPotencial) {
                             maiorPontuacaoPotencial = peso;
                             melhorPosicao = new Posicao(x, y);
+                            melhorRotacao = rot;
                         }
                     }
                 }
             }
-            if (melhorPosicao && maiorPontuacaoPotencial >= 5) {
+            if (melhorPosicao && maiorPontuacaoPotencial >= 5 && melhorRotacao === rot) {
                 return melhorPosicao;
             }
+            tile.rotacionar();
+        }
+
+        // Após 4 giros a peça voltou ao início: reaplica a rotação da melhor posição
+        for (let i = 0; i < melhorRotacao; i++) {
             tile.rotacionar();
         }
 
@@ -148,6 +155,7 @@ export class EstrategiaIADefensiva implements EstrategiaIA {
     public escolherPosicao(tile: Tile, tabuleiroManager: TabuleiroManager): Posicao | null {
         const tamanho = tabuleiroManager.obterTabuleiro().tamanho;
         let melhorPosicao: Posicao | null = null;
+        let melhorRotacao = 0;
         let maxVizinhos = -1;
 
         for (let rot = 0; rot < 4; rot++) {
@@ -159,13 +167,19 @@ export class EstrategiaIADefensiva implements EstrategiaIA {
                         if (vizinhos.length > maxVizinhos) {
                             maxVizinhos = vizinhos.length;
                             melhorPosicao = new Posicao(x, y);
+                            melhorRotacao = rot;
                         }
                     }
                 }
             }
-            if (melhorPosicao && maxVizinhos >= 3) {
+            if (melhorPosicao && maxVizinhos >= 3 && melhorRotacao === rot) {
                 return melhorPosicao;
             }
+            tile.rotacionar();
+        }
+
+        // Após 4 giros a peça voltou ao início: reaplica a rotação da melhor posição
+        for (let i = 0; i < melhorRotacao; i++) {
             tile.rotacionar();
         }
 

@@ -42,6 +42,23 @@ export class CarcasonneFacade {
     }
 
 
+    public iniciarPartidaIAContraIA(
+        nomes: [string, string],
+        estrategias: [EstrategiaIA, EstrategiaIA]
+    ): void {
+        this.gameManager.iniciarPartidaIAContraIA(nomes, estrategias);
+        this.tileManager = this.gameManager.obterTileManager();
+    }
+
+    public executarTurnoIA(): void {
+        this.gameManager.executarTurnoIA();
+    }
+
+    public ehPartidaSomenteIA(): boolean {
+        return this.gameManager.ehPartidaSomenteIA();
+    }
+
+
     public realizarJogada(
         x: number,
         y: number,
@@ -87,8 +104,6 @@ export class CarcasonneFacade {
             this.gameManager.obterFaseAtual() === 'ALOCAR_MEEPLE'
         ) {
             this.gameManager.finalizarTurnoSemMeeple();
-        } else {
-            this.gameManager.proximoTurno();
         }
     }
 

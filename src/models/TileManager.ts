@@ -55,6 +55,15 @@ export class TileManager {
     }
 
     /**
+     * Retira do baralho a peça inicial oficial: cidade em um lado com estrada reta.
+     */
+    public retirarPecaInicial(): Tile | null {
+        const indice = this.baralho.findIndex((t) => t.tipo === 'CIDADE_1_LADO_ESTRADA_RETA');
+        if (indice === -1) return null;
+        return this.baralho.splice(indice, 1)[0];
+    }
+
+    /**
      * Saca a próxima peça válida do baralho.
      * Se um TabuleiroManager for fornecido (ou obtido como Singleton),
      * verifica se a peça pode ser colocada; caso não possa, ela é descartada.

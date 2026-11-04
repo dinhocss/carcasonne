@@ -35,6 +35,8 @@ export function App() {
     const [, setTick] = useState(0);
     const [menuFechado, setMenuFechado] = useState(false);
     const [tipoEstrategiaIA, setTipoEstrategiaIA] = useState<'FACIL' | 'AGRESSIVA' | 'DEFENSIVA'>('FACIL');
+    const [tipoEstrategiaIA2, setTipoEstrategiaIA2] = useState<'FACIL' | 'AGRESSIVA' | 'DEFENSIVA'>('AGRESSIVA');
+    const [quantidadeJogadores, setQuantidadeJogadores] = useState(2);
 
     useEffect(() => {
         const observadorDaTela: IGameObserver = {
@@ -51,12 +53,24 @@ export function App() {
         };
     }, [facade]);
 
-    const obterInstanciaEstrategiaIA = (): EstrategiaIA => {
-        switch (tipoEstrategiaIA) {
+    const obterInstanciaEstrategiaIA = (tipo = tipoEstrategiaIA): EstrategiaIA => {
+        switch (tipo) {
             case 'AGRESSIVA': return new EstrategiaIAAgressiva();
             case 'DEFENSIVA': return new EstrategiaIADefensiva();
             default: return new EstrategiaIAPrimeiraValida();
         }
+    };
+
+    const iniciarJogoComHumanos = () => {
+        const nomes = Array.from({ length: quantidadeJogadores }, (_, i) => `Jogador ${i + 1}`);
+        facade.iniciarNovaPartida(nomes);
+    };
+
+    const iniciarIAContraIA = () => {
+        facade.iniciarPartidaIAContraIA(
+            [`Bot 1 (${tipoEstrategiaIA})`, `Bot 2 (${tipoEstrategiaIA2})`],
+            [obterInstanciaEstrategiaIA(tipoEstrategiaIA), obterInstanciaEstrategiaIA(tipoEstrategiaIA2)]
+        );
     };
 
     const iniciarJogoComIA = () => {
@@ -75,7 +89,16 @@ export function App() {
     const ultimoTile = facade.obterUltimoTilePosicionado();
     const faseAtual = facade.obterFaseAtual();
     const jogoFinalizado = facade.estaFinalizada();
+    const partidaSomenteIA = facade.ehPartidaSomenteIA();
     const vencedores = jogoFinalizado ? facade.obterVencedores() : [];
+
+    // Em IA contra IA, executa um turno por vez para mostrar cada jogada
+    useEffect(() => {
+        if (!partidaSomenteIA || jogoFinalizado) return;
+
+        const temporizador = setInterval(() => facade.executarTurnoIA(), 400);
+        return () => clearInterval(temporizador);
+    }, [facade, partidaSomenteIA, jogoFinalizado]);
 
     // Opções de subsegmentos válidos para colocar o Meeple
     const opcoesMeepleDisponiveis = ultimoTile
@@ -219,9 +242,9 @@ export function App() {
                         <button
                             className="btn"
                             style={{ flex: 1, padding: '8px', fontSize: '12px' }}
-                            onClick={() => facade.iniciarNovaPartida(['Jogador 1', 'Jogador 2'])}
+                            onClick={iniciarJogoComHumanos}
                         >
-                            👥 2 Jogadores
+                            👥 {quantidadeJogadores} Jogadores
                         </button>
                         <button
                             className="btn"
@@ -230,6 +253,30 @@ export function App() {
                         >
                             🤖 Contra IA
                         </button>
+                    </div>
+                    <button
+                        className="btn"
+                        style={{ padding: '8px', fontSize: '12px' }}
+                        onClick={iniciarIAContraIA}
+                    >
+                        🤖⚔️🤖 IA contra IA
+                    </button>
+
+                    <div style={{ backgroundColor: '#1e1e24', padding: '8px', borderRadius: '6px' }}>
+                        <label style={{ fontSize: '11px', color: '#ffd166', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                            👥 Quantidade de jogadores:
+                        </label>
+                        <select
+                            aria-label="Quantidade de jogadores"
+                            style={{ width: '100%', padding: '6px', backgroundColor: '#2d3142', color: '#fff', border: '1px solid #4f5d75', borderRadius: '4px', fontSize: '12px' }}
+                            value={quantidadeJogadores}
+                            onChange={(e) => setQuantidadeJogadores(Number(e.target.value))}
+                        >
+                            <option value={2}>2 jogadores</option>
+                            <option value={3}>3 jogadores</option>
+                            <option value={4}>4 jogadores</option>
+                            <option value={5}>5 jogadores</option>
+                        </select>
                     </div>
 
                     {/* GoF Strategy: Seleção da Estratégia de Tomada de Decisão da IA */}
@@ -241,6 +288,19 @@ export function App() {
                             style={{ width: '100%', padding: '6px', backgroundColor: '#2d3142', color: '#fff', border: '1px solid #4f5d75', borderRadius: '4px', fontSize: '12px' }}
                             value={tipoEstrategiaIA}
                             onChange={(e) => setTipoEstrategiaIA(e.target.value as any)}
+                        >
+                            <option value="FACIL">Estratégia Fácil (Primeira Válida)</option>
+                            <option value="AGRESSIVA">Estratégia Agressiva (Cidades e Escudos)</option>
+                            <option value="DEFENSIVA">Estratégia Defensiva (Fechamentos Rápidos)</option>
+                        </select>
+                        <label style={{ fontSize: '11px', color: '#ffd166', fontWeight: 'bold', display: 'block', margin: '8px 0 4px 0' }}>
+                            🧠 Segunda IA (IA contra IA):
+                        </label>
+                        <select
+                            aria-label="Estratégia da segunda IA"
+                            style={{ width: '100%', padding: '6px', backgroundColor: '#2d3142', color: '#fff', border: '1px solid #4f5d75', borderRadius: '4px', fontSize: '12px' }}
+                            value={tipoEstrategiaIA2}
+                            onChange={(e) => setTipoEstrategiaIA2(e.target.value as 'FACIL' | 'AGRESSIVA' | 'DEFENSIVA')}
                         >
                             <option value="FACIL">Estratégia Fácil (Primeira Válida)</option>
                             <option value="AGRESSIVA">Estratégia Agressiva (Cidades e Escudos)</option>
@@ -295,7 +355,7 @@ export function App() {
                 {/* Controles e Peça Atual */}
                 <h2 style={{ fontSize: '18px', margin: '4px 0 8px 0' }}>Ações do Turno (Facade)</h2>
 
-                {!jogoFinalizado && faseAtual === 'COMPRAR_TILE' && (
+                {!jogoFinalizado && !partidaSomenteIA && faseAtual === 'COMPRAR_TILE' && (
                     <button
                         className="btn"
                         style={{ backgroundColor: '#2a9d8f', borderColor: '#fff' }}
