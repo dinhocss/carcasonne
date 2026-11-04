@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './style.css';
 import { CarcasonneFacade } from './models/CarcasonneFacade';
 import type { IGameObserver } from './models/GameManager';
@@ -34,9 +34,14 @@ export function App() {
     const facade = useMemo(() => new CarcasonneFacade(), []);
     const [, setTick] = useState(0);
     const [menuFechado, setMenuFechado] = useState(false);
-    const [tipoEstrategiaIA, setTipoEstrategiaIA] = useState<'FACIL' | 'AGRESSIVA' | 'DEFENSIVA'>('FACIL');
-    const [tipoEstrategiaIA2, setTipoEstrategiaIA2] = useState<'FACIL' | 'AGRESSIVA' | 'DEFENSIVA'>('AGRESSIVA');
+    type TipoEstrategiaIA = 'FACIL' | 'AGRESSIVA' | 'DEFENSIVA';
+    const [tiposEstrategiaIA, setTiposEstrategiaIA] = useState<TipoEstrategiaIA[]>(['FACIL', 'AGRESSIVA', 'DEFENSIVA', 'FACIL', 'AGRESSIVA']);
     const [quantidadeJogadores, setQuantidadeJogadores] = useState(2);
+    const [quantidadeIAs, setQuantidadeIAs] = useState(0);
+    const [atrasoIA, setAtrasoIA] = useState(700);
+    const ultimaConfiguracao = useRef<{ nome: string; tipo: 'JOGADOR' | 'IA'; estrategia?: EstrategiaIA }[]>([
+        { nome: 'Jogador 1 (Você)', tipo: 'JOGADOR' }, { nome: 'Jogador 2', tipo: 'JOGADOR' }
+    ]);
 
     useEffect(() => {
         const observadorDaTela: IGameObserver = {
@@ -46,6 +51,7 @@ export function App() {
         };
 
         facade.adicionarObservador(observadorDaTela);
+        ultimaConfiguracao.current = [{ nome: 'Jogador 1 (Você)', tipo: 'JOGADOR' }, { nome: 'Jogador 2', tipo: 'JOGADOR' }];
         facade.iniciarNovaPartida(['Jogador 1 (Você)', 'Jogador 2']);
 
         return () => {
@@ -53,7 +59,11 @@ export function App() {
         };
     }, [facade]);
 
-    const obterInstanciaEstrategiaIA = (tipo = tipoEstrategiaIA): EstrategiaIA => {
+    useEffect(() => {
+        facade.definirAtrasoEntreAcoesIA(atrasoIA);
+    }, [facade, atrasoIA]);
+
+    const obterInstanciaEstrategiaIA = (tipo: TipoEstrategiaIA): EstrategiaIA => {
         switch (tipo) {
             case 'AGRESSIVA': return new EstrategiaIAAgressiva();
             case 'DEFENSIVA': return new EstrategiaIADefensiva();
@@ -61,25 +71,20 @@ export function App() {
         }
     };
 
-    const iniciarJogoComHumanos = () => {
-        const nomes = Array.from({ length: quantidadeJogadores }, (_, i) => `Jogador ${i + 1}`);
-        facade.iniciarNovaPartida(nomes);
+    const iniciarPartidaConfigurada = () => {
+        const participantes = [
+            ...Array.from({ length: quantidadeJogadores }, (_, i) => ({ nome: `Jogador ${i + 1}`, tipo: 'JOGADOR' as const })),
+            ...Array.from({ length: quantidadeIAs }, (_, i) => ({
+                nome: `IA ${i + 1} (${tiposEstrategiaIA[i]})`,
+                tipo: 'IA' as const,
+                estrategia: obterInstanciaEstrategiaIA(tiposEstrategiaIA[i])
+            }))
+        ];
+        ultimaConfiguracao.current = participantes;
+        facade.iniciarPartidaConfigurada(participantes);
     };
 
-    const iniciarIAContraIA = () => {
-        facade.iniciarPartidaIAContraIA(
-            [`Bot 1 (${tipoEstrategiaIA})`, `Bot 2 (${tipoEstrategiaIA2})`],
-            [obterInstanciaEstrategiaIA(tipoEstrategiaIA), obterInstanciaEstrategiaIA(tipoEstrategiaIA2)]
-        );
-    };
-
-    const iniciarJogoComIA = () => {
-        facade.iniciarPartidaContraIA(
-            'Jogador 1 (Você)',
-            `Bot Carcassonne (${tipoEstrategiaIA})`,
-            obterInstanciaEstrategiaIA()
-        );
-    };
+    const reiniciarPartida = () => facade.iniciarPartidaConfigurada(ultimaConfiguracao.current);
 
     const tabuleiro = facade.obterTabuleiro();
     const grid = tabuleiro.obterGrid();
@@ -90,15 +95,16 @@ export function App() {
     const faseAtual = facade.obterFaseAtual();
     const jogoFinalizado = facade.estaFinalizada();
     const partidaSomenteIA = facade.ehPartidaSomenteIA();
+    const partidaPausada = facade.estaPausadaIA();
     const vencedores = jogoFinalizado ? facade.obterVencedores() : [];
 
     // Em IA contra IA, executa um turno por vez para mostrar cada jogada
     useEffect(() => {
         if (!partidaSomenteIA || jogoFinalizado) return;
 
-        const temporizador = setInterval(() => facade.executarTurnoIA(), 400);
+        const temporizador = setInterval(() => facade.executarTurnoIA(), atrasoIA);
         return () => clearInterval(temporizador);
-    }, [facade, partidaSomenteIA, jogoFinalizado]);
+    }, [facade, partidaSomenteIA, jogoFinalizado, atrasoIA]);
 
     // Opções de subsegmentos válidos para colocar o Meeple
     const opcoesMeepleDisponiveis = ultimoTile
@@ -238,75 +244,33 @@ export function App() {
             {/* Lado Direito: Menu Lateral com Padrões GoF e GRASP */}
             <div className={`sidebar ${menuFechado ? 'fechada' : ''}`} id="menu-lateral">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px', paddingRight: '45px' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                            className="btn"
-                            style={{ flex: 1, padding: '8px', fontSize: '12px' }}
-                            onClick={iniciarJogoComHumanos}
-                        >
-                            👥 {quantidadeJogadores} Jogadores
-                        </button>
-                        <button
-                            className="btn"
-                            style={{ flex: 1, padding: '8px', fontSize: '12px' }}
-                            onClick={iniciarJogoComIA}
-                        >
-                            🤖 Contra IA
-                        </button>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+                        <button className="btn" onClick={() => { setQuantidadeJogadores(2); setQuantidadeIAs(0); }}>JxJ</button>
+                        <button className="btn" onClick={() => { setQuantidadeJogadores(0); setQuantidadeIAs(2); }}>IAxIA</button>
+                        <button className="btn" onClick={() => { setQuantidadeJogadores(2); setQuantidadeIAs(1); }}>JxJxIA</button>
+                        <button className="btn" onClick={() => { setQuantidadeJogadores(1); setQuantidadeIAs(1); }}>JxIA</button>
                     </div>
-                    <button
-                        className="btn"
-                        style={{ padding: '8px', fontSize: '12px' }}
-                        onClick={iniciarIAContraIA}
-                    >
-                        🤖⚔️🤖 IA contra IA
+                    <div style={{ backgroundColor: '#1e1e24', padding: '8px', borderRadius: '6px' }}>
+                        <label style={{ fontSize: '11px', color: '#ffd166', fontWeight: 'bold' }}>Quantidade de jogadores humanos</label>
+                        <select aria-label="Quantidade de jogadores humanos" style={{ width: '100%', padding: '6px', backgroundColor: '#2d3142', color: '#fff' }} value={quantidadeJogadores} onChange={(e) => { const n = Number(e.target.value); setQuantidadeJogadores(n); setQuantidadeIAs((atual) => Math.min(atual, 5 - n)); }}>
+                            {Array.from({ length: 6 - quantidadeIAs }, (_, n) => n).map((n) => <option key={n} value={n}>{n} humanos</option>)}
+                        </select>
+                        <label style={{ fontSize: '11px', color: '#ffd166', fontWeight: 'bold' }}>Quantidade de IAs</label>
+                        <select aria-label="Quantidade de IAs" style={{ width: '100%', padding: '6px', backgroundColor: '#2d3142', color: '#fff' }} value={quantidadeIAs} onChange={(e) => { const n = Number(e.target.value); setQuantidadeIAs(n); setQuantidadeJogadores((atual) => Math.min(atual, 5 - n)); }}>
+                            {Array.from({ length: 6 - quantidadeJogadores }, (_, n) => n).map((n) => <option key={n} value={n}>{n} IAs</option>)}
+                        </select>
+                    </div>
+                    {Array.from({ length: quantidadeIAs }, (_, i) => (
+                        <label key={i} style={{ fontSize: '11px', color: '#ffd166' }}>
+                            Estratégia da IA {i + 1}
+                            <select aria-label={`Estratégia da IA ${i + 1}`} style={{ width: '100%', padding: '6px', backgroundColor: '#2d3142', color: '#fff' }} value={tiposEstrategiaIA[i]} onChange={(e) => setTiposEstrategiaIA((atual) => atual.map((t, j) => j === i ? e.target.value as TipoEstrategiaIA : t))}>
+                                <option value="FACIL">Fácil</option><option value="AGRESSIVA">Agressiva</option><option value="DEFENSIVA">Defensiva</option>
+                            </select>
+                        </label>
+                    ))}
+                    <button className="btn" onClick={iniciarPartidaConfigurada} disabled={quantidadeJogadores + quantidadeIAs < 2}>
+                        Iniciar partida ({quantidadeJogadores + quantidadeIAs} participantes)
                     </button>
-
-                    <div style={{ backgroundColor: '#1e1e24', padding: '8px', borderRadius: '6px' }}>
-                        <label style={{ fontSize: '11px', color: '#ffd166', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
-                            👥 Quantidade de jogadores:
-                        </label>
-                        <select
-                            aria-label="Quantidade de jogadores"
-                            style={{ width: '100%', padding: '6px', backgroundColor: '#2d3142', color: '#fff', border: '1px solid #4f5d75', borderRadius: '4px', fontSize: '12px' }}
-                            value={quantidadeJogadores}
-                            onChange={(e) => setQuantidadeJogadores(Number(e.target.value))}
-                        >
-                            <option value={2}>2 jogadores</option>
-                            <option value={3}>3 jogadores</option>
-                            <option value={4}>4 jogadores</option>
-                            <option value={5}>5 jogadores</option>
-                        </select>
-                    </div>
-
-                    {/* GoF Strategy: Seleção da Estratégia de Tomada de Decisão da IA */}
-                    <div style={{ backgroundColor: '#1e1e24', padding: '8px', borderRadius: '6px' }}>
-                        <label style={{ fontSize: '11px', color: '#ffd166', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
-                            🧠 GoF Strategy da IA:
-                        </label>
-                        <select
-                            style={{ width: '100%', padding: '6px', backgroundColor: '#2d3142', color: '#fff', border: '1px solid #4f5d75', borderRadius: '4px', fontSize: '12px' }}
-                            value={tipoEstrategiaIA}
-                            onChange={(e) => setTipoEstrategiaIA(e.target.value as any)}
-                        >
-                            <option value="FACIL">Estratégia Fácil (Primeira Válida)</option>
-                            <option value="AGRESSIVA">Estratégia Agressiva (Cidades e Escudos)</option>
-                            <option value="DEFENSIVA">Estratégia Defensiva (Fechamentos Rápidos)</option>
-                        </select>
-                        <label style={{ fontSize: '11px', color: '#ffd166', fontWeight: 'bold', display: 'block', margin: '8px 0 4px 0' }}>
-                            🧠 Segunda IA (IA contra IA):
-                        </label>
-                        <select
-                            aria-label="Estratégia da segunda IA"
-                            style={{ width: '100%', padding: '6px', backgroundColor: '#2d3142', color: '#fff', border: '1px solid #4f5d75', borderRadius: '4px', fontSize: '12px' }}
-                            value={tipoEstrategiaIA2}
-                            onChange={(e) => setTipoEstrategiaIA2(e.target.value as 'FACIL' | 'AGRESSIVA' | 'DEFENSIVA')}
-                        >
-                            <option value="FACIL">Estratégia Fácil (Primeira Válida)</option>
-                            <option value="AGRESSIVA">Estratégia Agressiva (Cidades e Escudos)</option>
-                            <option value="DEFENSIVA">Estratégia Defensiva (Fechamentos Rápidos)</option>
-                        </select>
-                    </div>
                 </div>
 
                 <h2 style={{ fontSize: '18px', margin: '4px 0 8px 0' }}>Participantes</h2>
@@ -347,6 +311,31 @@ export function App() {
                         </div>
                     );
                 })}
+
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                    {partidaSomenteIA && !jogoFinalizado && (
+                        <button className="btn" style={{ flex: 1, backgroundColor: '#e9c46a', color: '#222' }} onClick={() => facade.alternarPausaIA()}>
+                            {partidaPausada ? '▶️ Continuar' : '⏸️ Pausar'}
+                        </button>
+                    )}
+                    <button className="btn" style={{ flex: 1, backgroundColor: '#e76f51' }} onClick={reiniciarPartida}>
+                        🔄 Reiniciar partida
+                    </button>
+                </div>
+                {participantes.some((p) => p.ehAutomatico()) && (
+                    <label style={{ display: 'block', fontSize: '12px', color: '#ffd166', marginBottom: '10px' }}>
+                        Espera entre ações da IA (ms)
+                        <input
+                            type="number"
+                            min={0}
+                            max={10000}
+                            step={100}
+                            value={atrasoIA}
+                            onChange={(e) => setAtrasoIA(Math.max(0, Math.min(10000, Number(e.target.value) || 0)))}
+                            style={{ width: '100%', marginTop: '4px', padding: '6px', backgroundColor: '#2d3142', color: '#fff', border: '1px solid #4f5d75', borderRadius: '4px' }}
+                        />
+                    </label>
+                )}
 
                 <p style={{ fontSize: '12px', color: '#ccc', margin: '2px 0 10px 0' }}>
                     📦 Peças restantes no baralho: <strong>{facade.obterQuantidadeBaralho()}</strong>

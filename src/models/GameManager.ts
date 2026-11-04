@@ -22,6 +22,7 @@ export type FaseDoTurno =
  * Construtor privado e ponto de acesso global estático através de getInstance().
  */
 export class GameManager {
+    private atrasoEntreAcoesIA = 700;
     private static instance: GameManager | null = null;
     private observadores: IGameObserver[] = [];
 
@@ -30,6 +31,7 @@ export class GameManager {
     private indiceJogadorAtual: number = 0;
     private partidaFinalizada: boolean = false;
     private partidaSomenteIA: boolean = false;
+    private partidaPausada: boolean = false;
 
     private tileManager: TileManager;
     private tabuleiroManager: TabuleiroManager;
@@ -86,6 +88,7 @@ export class GameManager {
         this.tileManager = new TileManager();
         this.partidaFinalizada = false;
         this.partidaSomenteIA = false;
+        this.partidaPausada = false;
 
         const nome1 = nomesJogadores && nomesJogadores[0] ? nomesJogadores[0] : 'Jogador 1';
         const nome2 = nomesJogadores && nomesJogadores[1] ? nomesJogadores[1] : (comIA ? 'Bot Carcassonne (IA)' : 'Jogador 2');
@@ -118,6 +121,23 @@ export class GameManager {
         this.notificarObservadores();
     }
 
+    public iniciarPartidaConfigurada(
+        configuracoes: { nome: string; tipo: 'JOGADOR' | 'IA'; estrategia?: EstrategiaIA }[]
+    ): void {
+        if (configuracoes.length < 2) return;
+        this.iniciarPartida(false, configuracoes.map((p) => p.nome));
+        const cores = ['#4CAF50', '#2196F3', '#E91E63', '#9C27B0', '#00BCD4', '#FF5722'];
+        this.participantes = configuracoes.map((p, i) => p.tipo === 'IA'
+            ? new IA(p.nome, cores[i % cores.length], p.estrategia)
+            : new Jogador(p.nome, cores[i % cores.length]));
+        this.indiceJogadorAtual = 0;
+        this.jogadorAtual = this.participantes[0];
+        this.partidaSomenteIA = this.participantes.every((p) => p.ehAutomatico());
+        this.partidaPausada = false;
+        this.mensagemStatus = `Partida iniciada! Vez de ${this.jogadorAtual.obterNome()}.`;
+        this.notificarObservadores();
+    }
+
     /**
      * Inicia uma partida entre duas IAs. Os turnos são executados um a um por
      * executarTurnoIA(), para que a interface consiga mostrar cada jogada.
@@ -141,11 +161,24 @@ export class GameManager {
      * Executa o turno da IA atual em uma partida entre IAs.
      */
     public executarTurnoIA(): void {
-        if (!this.partidaSomenteIA || this.partidaFinalizada || this.faseAtual !== 'COMPRAR_TILE') return;
+        if (!this.partidaSomenteIA || this.partidaPausada || this.partidaFinalizada || this.faseAtual !== 'COMPRAR_TILE') return;
 
         this.executarTurnoAutomaticoIA();
         this.notificarObservadores();
     }
+
+    public alternarPausaIA(): void {
+        if (!this.partidaSomenteIA || this.partidaFinalizada) return;
+        this.partidaPausada = !this.partidaPausada;
+        this.mensagemStatus = this.partidaPausada ? 'Partida pausada.' : `Partida retomada. Vez de ${this.jogadorAtual.obterNome()}.`;
+        this.notificarObservadores();
+    }
+
+    public definirAtrasoEntreAcoesIA(atrasoMs: number): void {
+        this.atrasoEntreAcoesIA = Math.max(0, Math.min(10000, Math.round(atrasoMs)));
+    }
+
+    public estaPausadaIA(): boolean { return this.partidaPausada; }
 
     /**
      * Fase: COMPRAR_TILE
@@ -294,7 +327,12 @@ export class GameManager {
         this.mensagemStatus = `Vez de ${this.jogadorAtual.obterNome()} comprar uma peça.`;
 
         if (this.jogadorAtual.ehAutomatico() && !this.partidaSomenteIA) {
-            this.executarTurnoAutomaticoIA();
+            setTimeout(() => {
+                if (!this.partidaFinalizada && this.jogadorAtual.ehAutomatico() && this.faseAtual === 'COMPRAR_TILE') {
+                    this.executarTurnoAutomaticoIA();
+                    this.notificarObservadores();
+                }
+            }, this.atrasoEntreAcoesIA);
         }
 
         this.notificarObservadores();
@@ -418,3 +456,6 @@ export class GameManager {
     public obterTileManager(): TileManager { return this.tileManager; }
     public obterTabuleiroManager(): TabuleiroManager { return this.tabuleiroManager; }
 }
+
+
+

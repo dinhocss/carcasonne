@@ -23,6 +23,13 @@ export class CarcasonneFacade {
         this.tileManager = this.gameManager.obterTileManager();
     }
 
+    public iniciarPartidaConfigurada(
+        participantes: { nome: string; tipo: 'JOGADOR' | 'IA'; estrategia?: EstrategiaIA }[]
+    ): void {
+        this.gameManager.iniciarPartidaConfigurada(participantes);
+        this.tileManager = this.gameManager.obterTileManager();
+    }
+
 
     public iniciarPartidaContraIA(
         nomeHumano: string = 'Jogador 1',
@@ -52,6 +59,18 @@ export class CarcasonneFacade {
 
     public executarTurnoIA(): void {
         this.gameManager.executarTurnoIA();
+    }
+
+    public alternarPausaIA(): void {
+        this.gameManager.alternarPausaIA();
+    }
+
+    public estaPausadaIA(): boolean {
+        return this.gameManager.estaPausadaIA();
+    }
+
+    public definirAtrasoEntreAcoesIA(atrasoMs: number): void {
+        this.gameManager.definirAtrasoEntreAcoesIA(atrasoMs);
     }
 
     public ehPartidaSomenteIA(): boolean {
